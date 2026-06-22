@@ -1,5 +1,6 @@
 import React, { useState, useRef } from "react";
 import { GameProps, StakeSlider } from "./shared";
+import { formatMoney } from "../../utils";
 
 export const SportyMinesGame: React.FC<GameProps> = ({
   balance,
@@ -100,7 +101,7 @@ export const SportyMinesGame: React.FC<GameProps> = ({
         setInGame(false);
         setRoundOver(true);
         setCommentary(
-          `🏆 BOARD CLEARANCE! All safe cells revealed! Won $${winAmount.toFixed(2)} (${nextMulti}x)`,
+          `🏆 BOARD CLEARANCE! All safe cells revealed! Won $${formatMoney(winAmount)} (${nextMulti}x)`,
         );
         addLog(
           "SportyMines",
@@ -127,7 +128,7 @@ export const SportyMinesGame: React.FC<GameProps> = ({
     setInGame(false);
     setRoundOver(true);
     setCommentary(
-      `💰 SAFE CASHOUT! Secured $${finalPayout.toFixed(2)} at ${finalMulti}x. See the full board reveal!`,
+      `💰 SAFE CASHOUT! Secured $${formatMoney(finalPayout)} at ${finalMulti}x. See the full board reveal!`,
     );
     addLog(
       "SportyMines",
@@ -231,7 +232,7 @@ export const SportyMinesGame: React.FC<GameProps> = ({
             <span>
               Cashout:{" "}
               <b className="text-emerald-400">
-                ${(safeStake * multiplier).toFixed(2)} ({multiplier}x)
+                ${formatMoney(safeStake * multiplier)} ({multiplier}x)
               </b>
             </span>
           </div>
@@ -240,7 +241,7 @@ export const SportyMinesGame: React.FC<GameProps> = ({
             disabled={revealedCount === 0}
             className="w-full bg-emerald-500 hover:bg-emerald-400 text-[#05070a] font-sans font-black text-xs py-3.5 rounded-2xl transition-all shadow-lg active:scale-95 disabled:opacity-50 cursor-pointer uppercase tracking-wider"
           >
-            💰 CASHOUT NOW (${(safeStake * multiplier).toFixed(2)})
+            💰 CASHOUT NOW (${formatMoney(safeStake * multiplier)})
           </button>
         </>
       ) : (

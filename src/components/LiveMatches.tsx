@@ -52,8 +52,8 @@ export const LiveMatches: React.FC<LiveMatchesProps> = ({
     }
   }, [activeFixtures, selectedFixtureId, setSelectedFixtureId]);
 
-  // Speed selection
-  const [speedMode, setSpeedMode] = useState<"broadcast" | "fast">("fast");
+  // Speed selection — default to broadcast (90s total watch time)
+  const [speedMode, setSpeedMode] = useState<"broadcast" | "fast">("broadcast");
   const speedMap = { "broadcast": 6000, "fast": 450 };
 
   const triggerGlobalEntity = (type: "team" | "player", id: string, e: React.MouseEvent) => {

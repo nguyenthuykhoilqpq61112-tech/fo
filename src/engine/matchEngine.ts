@@ -592,10 +592,15 @@ export function simulateMatchTick(
     updatedFixture.odds.awayWin = Math.max(1.01, Math.round((updatedFixture.odds.awayWin * awayShift) * 100) / 100);
     updatedFixture.odds.draw = Math.max(1.01, Math.round((updatedFixture.odds.draw * drawShift) * 100) / 100);
 
-    // If up by 4, disable odds (return NaN or something so they are handled as disabled)
-    if (Math.abs(diff) >= 4) {
-      updatedFixture.odds.homeWin = NaN;
+    // If one side is 4+ goals up, only suspend the LOSING team's win odds.
+    // The leading team's win odds remain available (they're very short but not suspended).
+    if (diff >= 4) {
+      // Away cannot realistically win from 4 down
       updatedFixture.odds.awayWin = NaN;
+      updatedFixture.odds.draw = NaN;
+    } else if (diff <= -4) {
+      // Home cannot realistically win from 4 down
+      updatedFixture.odds.homeWin = NaN;
       updatedFixture.odds.draw = NaN;
     }
   }

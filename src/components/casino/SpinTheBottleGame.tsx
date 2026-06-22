@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { GameProps, StakeSlider } from "./shared";
+import { formatMoney } from "../../utils";
 
 export const SpinTheBottleGame: React.FC<GameProps> = ({ balance, onUpdateBalance, addLog }) => {
   const [stake, setStake] = useState<number>(() => Math.max(1, Math.min(50, Math.floor(balance))));
@@ -55,7 +56,7 @@ export const SpinTheBottleGame: React.FC<GameProps> = ({ balance, onUpdateBalanc
       } else if (finalRes === betSide) {
         const payout = safeStake * 2.2;
         onUpdateBalance((prev) => prev + payout);
-        setCommentary(`🎉 EXCELLENT! Bottle nozzle points ${finalRes}! You won $${payout.toFixed(2)} (2.2x)!`);
+        setCommentary(`🎉 EXCELLENT! Bottle nozzle points ${finalRes}! You won $${formatMoney(payout)} (2.2x)!`);
         addLog("Spin the Bottle", safeStake, 2.2, "WIN", `Nozzle pointed ${finalRes}`);
       } else {
         setCommentary(`💔 MISSED! Nozzle points ${finalRes}, but you backed ${betSide}.`);

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { formatMoney } from "../../utils";
 
 interface WalletModalProps {
   balance: number;
@@ -25,8 +26,8 @@ export const WalletModal: React.FC<WalletModalProps> = ({
     if (success) {
       setWalletSuccessMsg(
         walletAction === "DEPOSIT"
-          ? `Successfully deposited $${amount.toFixed(2)} to your wallet!`
-          : `Successfully withdrew $${amount.toFixed(2)} from your wallet!`
+          ? `Successfully deposited $${formatMoney(amount)} to your wallet!`
+          : `Successfully withdrew $${formatMoney(amount)} from your wallet!`
       );
       setWalletValue("");
       setTimeout(() => {

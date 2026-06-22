@@ -1,6 +1,17 @@
 import { Fixture, MarketType } from "./types";
 
 /**
+ * Formats a number as a money string with commas and 2 decimal places.
+ * e.g. 1234.5 → "1,234.50"
+ */
+export function formatMoney(amount: number, decimals: number = 2): string {
+  return amount.toLocaleString(undefined, {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
+}
+
+/**
  * Calculates dynamically shifted live in-play odds based on elapsed minutes, current score, and match state.
  * Returns a number for active odds, or null if the selection/market is closed, suspended, or already covered.
  */
@@ -25,14 +36,17 @@ export function getLiveInPlayOdds(
 
   switch (marketType) {
     case "MATCH_WINNER": {
-      // If a team is up by 3 or more goals, match winner is functionally suspended (unavailable)
-      if (Math.abs(scoreDiff) >= 3) {
-        return null;
-      }
-      
-      // If late in the match (min >= 82) and someone is leading, match winner is suspended
-      if (min >= 82 && scoreDiff !== 0) {
-        return null;
+      // Only suspend if a team is up by 4+ goals — a 3-goal deficit is unlikely but not impossible
+      if (Math.abs(scoreDiff) >= 4) {
+        // The WINNING side's odds remain available; only suspend the losing side
+        const losingIsHome = scoreDiff <= -4;
+        const losingIsAway = scoreDiff >= 4;
+        if (losingIsHome && (selectionId === "HOME" || selectionId === "1")) return null;
+        if (losingIsAway && (selectionId === "AWAY" || selectionId === "2")) return null;
+        if (losingIsHome || losingIsAway) {
+          // Draw is effectively impossible too when 4 goals apart
+          if (selectionId === "DRAW" || selectionId === "X") return null;
+        }
       }
 
       if (selectionId === "HOME" || selectionId === "1") {
@@ -41,15 +55,15 @@ export function getLiveInPlayOdds(
           const leadMultiplier = 1 + scoreDiff * 3.0 + (min * 0.25);
           return Math.max(1.02, Math.min(baseOdds, baseOdds / leadMultiplier));
         } else if (scoreDiff < 0) {
-          // Home losing: odds rise exponentially as time expires
+          // Home losing: odds rise as time expires — only suspend at extreme values (>250)
           const deficit = Math.abs(scoreDiff);
           const timePlea = 1.05 / Math.max(0.01, timeFactor);
           const newOdds = baseOdds * (1 + deficit * 4.0) * timePlea;
-          return newOdds > 100 ? null : Number(newOdds.toFixed(2));
+          return newOdds > 250 ? null : Number(newOdds.toFixed(2));
         } else {
           // Tied: odds drift up as time runs out (draw more likely)
           const newOdds = baseOdds * (1.1 + (1 - timeFactor) * 1.5);
-          return newOdds > 100 ? null : Number(newOdds.toFixed(2));
+          return newOdds > 250 ? null : Number(newOdds.toFixed(2));
         }
       }
 
@@ -59,15 +73,15 @@ export function getLiveInPlayOdds(
           const leadMultiplier = 1 + Math.abs(scoreDiff) * 3.0 + (min * 0.25);
           return Math.max(1.02, Math.min(baseOdds, baseOdds / leadMultiplier));
         } else if (scoreDiff > 0) {
-          // Away losing: odds rise
+          // Away losing: odds rise — only suspend at extreme values (>250)
           const deficit = scoreDiff;
           const timePlea = 1.05 / Math.max(0.01, timeFactor);
           const newOdds = baseOdds * (1 + deficit * 4.0) * timePlea;
-          return newOdds > 100 ? null : Number(newOdds.toFixed(2));
+          return newOdds > 250 ? null : Number(newOdds.toFixed(2));
         } else {
           // Tied: away win odds drift up
           const newOdds = baseOdds * (1.1 + (1 - timeFactor) * 1.5);
-          return newOdds > 100 ? null : Number(newOdds.toFixed(2));
+          return newOdds > 250 ? null : Number(newOdds.toFixed(2));
         }
       }
 
@@ -76,12 +90,12 @@ export function getLiveInPlayOdds(
           // Currently tie: odds drop as time decays (very likely to finish draw)
           return Math.max(1.05, Number((baseOdds * Math.max(0.1, timeFactor * 1.1)).toFixed(2)));
         } else {
-          // Currently not tied: odds to draw rise as time decays (extremely hard to score equalizer in late minutes)
+          // Currently not tied: odds to draw rise as time decays
           const deficit = Math.abs(scoreDiff);
           const drawMultiplier = 1 + deficit * 3.5;
           const timeModifier = 1.25 / Math.max(0.02, timeFactor);
           const newOdds = baseOdds * drawMultiplier * timeModifier;
-          return newOdds > 80 ? null : Number(newOdds.toFixed(2));
+          return newOdds > 250 ? null : Number(newOdds.toFixed(2));
         }
       }
       break;
@@ -141,29 +155,26 @@ export function getLiveInPlayOdds(
     case "BOTH_TEAMS_TO_SCORE": {
       const hasBothScored = homeScore > 0 && awayScore > 0;
 
-      // "Bets already covered should be marked unavailable"
+      // Once both teams have scored, BTTS YES is already won — market resolved
       if (hasBothScored) {
-        // Both teams did score, so BTTS is already resolved. Both YES and NO are unavailable (suspended)
         return null;
       }
 
-      // If it's very late and at least one team has 0 goals, BTTS is virtually impossible
-      if (min >= 75) {
-        return null;
-      }
-
+      // BTTS NO: if one team has already scored and neither zeroes matter for NO,
+      // it can still be resolved at full time. Keep available but price accordingly.
       const bttsYes = selectionId === "YES";
       const homeZero = homeScore === 0;
       const awayZero = awayScore === 0;
       const zeroes = (homeZero ? 1 : 0) + (awayZero ? 1 : 0);
 
       if (bttsYes) {
-        // Yes: gets exponentially harder
+        // Yes: gets exponentially harder as time runs down and scorelines stay 0
         const scoreMod = 1 + zeroes * 2.2;
         const newOdds = baseOdds * scoreMod / Math.max(0.06, timeFactor);
-        return newOdds > 50 ? null : Number(newOdds.toFixed(2));
+        // Only suspend when odds exceed 200 (near-impossible but respect the market)
+        return newOdds > 200 ? null : Number(newOdds.toFixed(2));
       } else {
-        // No: gets safer
+        // No: gets safer as time passes without both scoring
         return Math.max(1.02, Number((baseOdds * Math.max(0.1, timeFactor)).toFixed(2)));
       }
     }

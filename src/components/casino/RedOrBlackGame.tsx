@@ -1,6 +1,7 @@
 import React, { useState, useRef } from "react";
 import { RefreshCw } from "lucide-react";
 import { GameProps, StakeSlider } from "./shared";
+import { formatMoney } from "../../utils";
 
 export const RedOrBlackGame: React.FC<GameProps> = ({ balance, onUpdateBalance, addLog }) => {
   const [stake, setStake] = useState<number>(() => Math.max(1, Math.min(50, Math.floor(balance))));
@@ -54,7 +55,7 @@ export const RedOrBlackGame: React.FC<GameProps> = ({ balance, onUpdateBalance, 
 
         if (thisRound >= 4) {
           onUpdateBalance((prev) => prev + newPool);
-          setMessage(`🏆 MASTER STREAK! 4 rounds cleared! You win $${newPool.toFixed(2)} (${ROUND_MULTIS[3]}x)!`);
+          setMessage(`🏆 MASTER STREAK! 4 rounds cleared! You win $${formatMoney(newPool)} (${ROUND_MULTIS[3]}x)!`);
           addLog("Red or Black", origWager, ROUND_MULTIS[3], "WIN", "Mastered 4 rounds streak!");
           setRound(0);
           setCurrentPool(0);
@@ -64,7 +65,7 @@ export const RedOrBlackGame: React.FC<GameProps> = ({ balance, onUpdateBalance, 
           const nextRound = thisRound + 1;
           setRound(nextRound);
           currentRoundRef.current = nextRound;
-          setMessage(`🎯 SUCCESS! Round ${thisRound} hit! Pool is now $${newPool.toFixed(2)} (${ROUND_MULTIS[thisRound - 1]}x). Continue to round ${nextRound} or Cash Out!`);
+          setMessage(`🎯 SUCCESS! Round ${thisRound} hit! Pool is now $${formatMoney(newPool)} (${ROUND_MULTIS[thisRound - 1]}x). Continue to round ${nextRound} or Cash Out!`);
         }
       } else {
         setMessage(`💔 Missed. Drawn card was ${draw} but you guessed ${choice}. Bet lost.`);
@@ -105,7 +106,7 @@ export const RedOrBlackGame: React.FC<GameProps> = ({ balance, onUpdateBalance, 
     const finalPool = currentPoolRef.current;
     const origWager = originalWagerRef.current;
     onUpdateBalance((prev) => prev + finalPool);
-    setMessage(`💰 Safe recovery! Cashed out $${finalPool.toFixed(2)} after round ${round - 1} (${(finalPool / origWager).toFixed(2)}x)!`);
+    setMessage(`💰 Safe recovery! Cashed out $${formatMoney(finalPool)} after round ${round - 1} (${(finalPool / origWager).toFixed(2)}x)!`);
     addLog("Red or Black", origWager, finalPool / origWager, "WIN", `Safe Cashout after Round ${round - 1}`);
     setRound(0);
     setCurrentPool(0);
@@ -177,7 +178,7 @@ export const RedOrBlackGame: React.FC<GameProps> = ({ balance, onUpdateBalance, 
       ) : (
         <div className="bg-black/30 border border-white/5 rounded-xl p-3 flex items-center justify-between text-xs font-mono">
           <span>Active Streak: <b className="text-emerald-400">Round {round}</b></span>
-          <span>Rolling Pool: <b className="text-emerald-400">${currentPool.toFixed(2)}</b></span>
+          <span>Rolling Pool: <b className="text-emerald-400">${formatMoney(currentPool)}</b></span>
         </div>
       )}
 
@@ -204,7 +205,7 @@ export const RedOrBlackGame: React.FC<GameProps> = ({ balance, onUpdateBalance, 
           disabled={spinning}
           className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-sans font-black text-xs py-3.5 rounded-2xl transition-all shadow-lg active:scale-95 disabled:opacity-50 cursor-pointer uppercase tracking-wider block text-center"
         >
-          💰 CASHOUT POOL (${currentPool.toFixed(2)})
+          💰 CASHOUT POOL (${formatMoney(currentPool)})
         </button>
       )}
     </div>

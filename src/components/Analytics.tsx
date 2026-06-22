@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { Team, Player, Profile } from "../types";
+import { formatMoney } from "../utils";
 import { TeamCrest } from "./TeamCrest";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Area, AreaChart } from "recharts";
 
@@ -684,7 +685,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({ teams, fixtures, userProfi
           <div className="glass-card border border-white/5 rounded-2xl p-4 flex flex-col justify-between text-center select-none">
             <span className="text-[9px] text-slate-400 font-bold uppercase font-sans">BIGGEST WIN</span>
             <span className="text-xl font-black font-mono text-amber-400 mt-1">
-              ${financeData?.biggestWin.toFixed(2)}
+              ${financeData ? formatMoney(financeData.biggestWin) : "0.00"}
             </span>
             <p className="text-[8px] text-amber-500/60 font-mono mt-1 uppercase">
               PURE PROFIT
@@ -707,7 +708,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({ teams, fixtures, userProfi
              <h3 className="text-xs font-bold text-slate-300 font-sans tracking-tight uppercase tracking-wider">
                Bankroll Trajectory
              </h3>
-             <p className="text-[10px] text-slate-500 font-mono">Current Balance: <span className="text-emerald-400 font-bold">${userProfile?.balance.toFixed(2)}</span></p>
+             <p className="text-[10px] text-slate-500 font-mono">Current Balance: <span className="text-emerald-400 font-bold">${userProfile ? formatMoney(userProfile.balance) : "0.00"}</span></p>
           </div>
           <div className="h-72 w-full mt-8">
             <ResponsiveContainer width="100%" height="100%">

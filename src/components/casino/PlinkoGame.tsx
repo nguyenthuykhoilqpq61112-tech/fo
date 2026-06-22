@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { GameProps, StakeSlider } from "./shared";
+import { formatMoney } from "../../utils";
 
 export const PlinkoGame: React.FC<GameProps> = ({ balance, onUpdateBalance, addLog }) => {
   const [stake, setStake] = useState<number>(() => Math.max(1, Math.min(50, Math.floor(balance))));
@@ -51,7 +52,7 @@ export const PlinkoGame: React.FC<GameProps> = ({ balance, onUpdateBalance, addL
         const winPayout = safeStake * hitBin.multi;
         onUpdateBalance((prev) => prev + winPayout);
 
-        setCommentary(`💎 Landed in ${hitBin.label} bin! Return: $${winPayout.toFixed(2)}`);
+        setCommentary(`💎 Landed in ${hitBin.label} bin! Return: $${formatMoney(winPayout)}`);
         addLog("Golden Boot Plinko", safeStake, hitBin.multi, hitBin.multi >= 1.0 ? "WIN" : "LOSS", `Landed in ${hitBin.label} slot`);
       }
     }, 280);

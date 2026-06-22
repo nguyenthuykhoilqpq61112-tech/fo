@@ -1,6 +1,7 @@
 import React, { useState, useRef } from "react";
 import { Sparkles } from "lucide-react";
 import { GameProps, StakeSlider } from "./shared";
+import { formatMoney } from "../../utils";
 
 export const PenaltyShootoutGame: React.FC<GameProps> = ({ balance, onUpdateBalance, addLog }) => {
   const [stake, setStake] = useState<number>(() => Math.max(1, Math.min(50, Math.floor(balance))));
@@ -60,7 +61,7 @@ export const PenaltyShootoutGame: React.FC<GameProps> = ({ balance, onUpdateBala
           const finalVal = stakeRef.current * 40.0;
           onUpdateBalance((prev) => prev + finalVal);
           setInGame(false);
-          setCommentary(`🏆 SHOT-MASTER! 4 goals in a row! Maximum payout $${finalVal.toFixed(2)} (40.0x Jackpot)!`);
+          setCommentary(`🏆 SHOT-MASTER! 4 goals in a row! Maximum payout $${formatMoney(finalVal)} (40.0x Jackpot)!`);
           addLog("Penalty Shootout", stakeRef.current, 40.0, "WIN", "Cleared 4 rounds penalty streak!");
           setRoundsCount(0);
         } else {
@@ -76,7 +77,7 @@ export const PenaltyShootoutGame: React.FC<GameProps> = ({ balance, onUpdateBala
     const winVal = stakeRef.current * currentMulti;
     onUpdateBalance((prev) => prev + winVal);
     setInGame(false);
-    setCommentary(`💰 CASHED OUT! Secured $${winVal.toFixed(2)} at ${currentMulti}x!`);
+    setCommentary(`💰 CASHED OUT! Secured $${formatMoney(winVal)} at ${currentMulti}x!`);
     addLog("Penalty Shootout", stakeRef.current, currentMulti, "WIN", `Safe Cashout after ${roundsCount - 1} goals`);
     setRoundsCount(0);
   };
@@ -137,7 +138,7 @@ export const PenaltyShootoutGame: React.FC<GameProps> = ({ balance, onUpdateBala
           disabled={roundsCount <= 1 || firing}
           className="w-full bg-emerald-500 hover:bg-emerald-400 text-[#05070a] font-sans font-black text-xs py-3.5 rounded-2xl transition-all shadow-lg active:scale-95 disabled:opacity-50 cursor-pointer uppercase tracking-wider block text-center"
         >
-          💰 CASHOUT PENALTY (${(stakeRef.current * currentMulti).toFixed(2)})
+          💰 CASHOUT PENALTY (${formatMoney(stakeRef.current * currentMulti)})
         </button>
       )}
 

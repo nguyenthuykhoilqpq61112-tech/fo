@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { GameProps, StakeSlider } from "./shared";
+import { formatMoney } from "../../utils";
 
 export const FootballSlotsGame: React.FC<GameProps> = ({ balance, onUpdateBalance, addLog }) => {
   const [stake, setStake] = useState<number>(() => Math.max(1, Math.min(50, Math.floor(balance))));
@@ -40,14 +41,14 @@ export const FootballSlotsGame: React.FC<GameProps> = ({ balance, onUpdateBalanc
 
         const winVal = safeStake * multi;
         onUpdateBalance((prev) => prev + winVal);
-        setCommentary(`🎉 MEGA WIN! 3×${r1}! Won $${winVal.toFixed(2)} (${multi}x)!`);
+        setCommentary(`🎉 MEGA WIN! 3×${r1}! Won $${formatMoney(winVal)} (${multi}x)!`);
         addLog("Football Slots", safeStake, multi, "WIN", `Hit 3 of a kind: ${r1}`);
       } else if (r1 === r2 || r2 === r3 || r1 === r3) {
         const matchedSym = r1 === r2 ? r1 : (r2 === r3 ? r2 : r3);
         const multi = 3.0;
         const winVal = safeStake * multi;
         onUpdateBalance((prev) => prev + winVal);
-        setCommentary(`🎉 WIN! Two-of-a-kind ${matchedSym}! Won $${winVal.toFixed(2)} (${multi}x)!`);
+        setCommentary(`🎉 WIN! Two-of-a-kind ${matchedSym}! Won $${formatMoney(winVal)} (${multi}x)!`);
         addLog("Football Slots", safeStake, multi, "WIN", `Matched 2: ${matchedSym}`);
       } else {
         setCommentary("💔 No matching lines. Try another spin to hit the Cup jackpot (100x)!");

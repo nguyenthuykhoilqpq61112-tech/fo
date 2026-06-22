@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { BetTicket, Fixture, Team, MarketType } from "../types";
+import { formatMoney } from "../utils";
 
 interface MyBetsProps {
   tickets: BetTicket[];
@@ -347,7 +348,7 @@ export const MyBets: React.FC<MyBetsProps> = ({ tickets, fixtures, teams, balanc
                     <div className="flex items-center gap-4">
                       {/* Stake & combined odds info */}
                       <span className="font-mono text-slate-400">
-                        Stake: <b className="text-slate-200 font-medium">${ticket.stake.toFixed(2)}</b>
+                        Stake: <b className="text-slate-200 font-medium">${formatMoney(ticket.stake)}</b>
                       </span>
                       <span className="font-mono text-emerald-450 font-bold bg-black/40 border border-white/5 rounded-lg px-2 py-0.5">
                         @{ticket.totalOdds.toFixed(2)}
@@ -372,7 +373,7 @@ export const MyBets: React.FC<MyBetsProps> = ({ tickets, fixtures, teams, balanc
                           onClick={(e) => { e.stopPropagation(); onCashOut(ticket.id, cashOutOffer); }}
                           className="bg-amber-500 hover:bg-amber-400 text-amber-950 font-bold text-[10px] uppercase px-3 py-1 rounded cursor-pointer transition-colors shadow-lg shadow-amber-500/20"
                         >
-                          Cash Out ${cashOutOffer.toFixed(2)}
+                          Cash Out ${formatMoney(cashOutOffer)}
                         </button>
                       )}
 
@@ -412,11 +413,11 @@ export const MyBets: React.FC<MyBetsProps> = ({ tickets, fixtures, teams, balanc
                   {/* Summary Net performance and payout bar */}
                   <div className="bg-black/30 px-3.5 py-2 px-3 flex items-center justify-between text-[11px] font-mono border-t border-white/5 text-slate-400 select-none">
                     <span>
-                      Est Payout: <b className="text-emerald-400 font-bold">${ticket.potentialPayout.toFixed(2)}</b>
+                      Est Payout: <b className="text-emerald-400 font-bold">${formatMoney(ticket.potentialPayout)}</b>
                     </span>
                     {!isPending && (
                       <span className={`${netRet >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                        {netRet >= 0 ? `Net Gain: +$${netRet.toFixed(2)}` : `Net Cost: -$${Math.abs(netRet).toFixed(2)}`}
+                        {netRet >= 0 ? `Net Gain: +$${formatMoney(netRet)}` : `Net Cost: -$${formatMoney(Math.abs(netRet))}`}
                       </span>
                     )}
                   </div>
@@ -470,7 +471,7 @@ export const MyBets: React.FC<MyBetsProps> = ({ tickets, fixtures, teams, balanc
                                 </p>
                                 {indStake !== undefined && (
                                   <p className="text-[9px] text-slate-500 font-mono">
-                                    Individual Stake: ${indStake.toFixed(2)} • Est Payout: ${(indStake * sel.odds).toFixed(2)}
+                                    Individual Stake: ${formatMoney(indStake)} • Est Payout: ${formatMoney(indStake * sel.odds)}
                                   </p>
                                 )}
                               </div>

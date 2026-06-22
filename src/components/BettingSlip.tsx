@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { BetSelection, Fixture, Team, MarketType } from "../types";
+import { formatMoney } from "../utils";
 import { Sparkles, Check, ChevronDown, ChevronUp } from "lucide-react";
 
 interface RecommendedSelection extends BetSelection {
@@ -208,7 +209,7 @@ export const BettingSlip: React.FC<BettingSlipProps> = ({
       }
 
       if (totalAmountRequired > balance) {
-        setErrorMessage(`Insufficient balance! Total required is $${totalAmountRequired.toFixed(2)}`);
+        setErrorMessage(`Insufficient balance! Total required is $${formatMoney(totalAmountRequired)}`);
         return;
       }
 
@@ -226,7 +227,7 @@ export const BettingSlip: React.FC<BettingSlipProps> = ({
       }
 
       if (numAccaStake > balance) {
-        setErrorMessage(`Insufficient balance! Wallet has $${balance.toFixed(2)}`);
+        setErrorMessage(`Insufficient balance! Wallet has $${formatMoney(balance)}`);
         return;
       }
 
@@ -513,7 +514,7 @@ export const BettingSlip: React.FC<BettingSlipProps> = ({
                     <div className="text-right">
                       <span className="text-[8px] text-slate-550 block leading-none font-mono">EST PAYOUT</span>
                       <span className="text-xs font-bold text-emerald-400 font-mono">
-                        ${singlePayout.toFixed(2)}
+                        ${formatMoney(singlePayout)}
                       </span>
                     </div>
                   </div>
@@ -555,7 +556,7 @@ export const BettingSlip: React.FC<BettingSlipProps> = ({
               <div className="text-right">
                 <span className="text-[8px] text-slate-500 block leading-none font-mono">EST PAYOUT</span>
                 <span className="text-xs font-black text-emerald-400 font-mono">
-                  ${accaPayout.toFixed(2)}
+                  ${formatMoney(accaPayout)}
                 </span>
               </div>
             </div>

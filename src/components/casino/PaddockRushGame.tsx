@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { GameProps, StakeSlider } from "./shared";
+import { formatMoney } from "../../utils";
 
 export const PaddockRushGame: React.FC<GameProps> = ({
   balance,
@@ -102,7 +103,7 @@ export const PaddockRushGame: React.FC<GameProps> = ({
     onUpdateBalance((prev) => prev + winVal);
 
     setCommentary(
-      `💰 CASHED OUT at ${finalOdds.toFixed(2)}x! Total return $${winVal.toFixed(2)}!`,
+      `💰 CASHED OUT at ${finalOdds.toFixed(2)}x! Total return $${formatMoney(winVal)}!`,
     );
     addLog(
       "Paddock Rush",

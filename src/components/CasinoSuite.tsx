@@ -18,6 +18,7 @@ import { PenaltyShootoutGame } from "./casino/PenaltyShootoutGame";
 import { FootballSlotsGame } from "./casino/FootballSlotsGame";
 import { PlinkoGame } from "./casino/PlinkoGame";
 import { OverUnderDiceGame } from "./casino/OverUnderDiceGame";
+import { formatMoney } from "../utils";
 
 interface CasinoSuiteProps {
   balance: number;
@@ -270,7 +271,7 @@ export const CasinoSuite: React.FC<CasinoSuiteProps> = ({
                 LOW BALANCE ALERT
               </span>
               <p className="text-[10px] text-slate-300">
-                Your wallet balance is ${balance.toFixed(2)}. Claim $500 free
+                Your wallet balance is ${formatMoney(balance)}. Claim $500 free
                 trial credits!
               </p>
             </div>
@@ -373,12 +374,12 @@ export const CasinoSuite: React.FC<CasinoSuiteProps> = ({
                             className={`font-black ${isWin ? "text-emerald-400" : isJoker ? "text-amber-500" : isFreeze ? "text-blue-400" : "text-red-400"}`}
                           >
                             {isWin
-                              ? `+$${(safeAmount * safeMultiplier).toFixed(2)}`
+                              ? `+$${formatMoney(safeAmount * safeMultiplier)}`
                               : isJoker
                                 ? "WIPED"
                                 : isFreeze
                                   ? "FROZEN"
-                                  : `-$${safeAmount.toFixed(0)}`}
+                                  : `-$${formatMoney(safeAmount, 0)}`}
                           </span>
                           <div className="text-[9px] text-slate-500 uppercase mt-0.5">
                             {isWin

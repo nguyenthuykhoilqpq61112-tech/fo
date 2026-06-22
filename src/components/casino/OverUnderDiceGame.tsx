@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { GameProps, StakeSlider } from "./shared";
+import { formatMoney } from "../../utils";
 
 export const OverUnderDiceGame: React.FC<GameProps> = ({ balance, onUpdateBalance, addLog }) => {
   const [stake, setStake] = useState<number>(() => Math.max(1, Math.min(50, Math.floor(balance))));
@@ -45,7 +46,7 @@ export const OverUnderDiceGame: React.FC<GameProps> = ({ balance, onUpdateBalanc
       if (success) {
         const winVal = safeStake * multiplier;
         onUpdateBalance((prev) => prev + winVal);
-        setCommentary(`🎉 ${d1} + ${d2} = ${sum} — ${targetMode.replace("_", " ")} HIT! Won $${winVal.toFixed(2)} (${multiplier}x)!`);
+        setCommentary(`🎉 ${d1} + ${d2} = ${sum} — ${targetMode.replace("_", " ")} HIT! Won $${formatMoney(winVal)} (${multiplier}x)!`);
         addLog("Over/Under Dice", safeStake, multiplier, "WIN", `Sum was ${sum} (Guessed ${targetMode})`);
       } else {
         setCommentary(`💔 ${d1} + ${d2} = ${sum} — ${targetMode.replace("_", " ")} MISSED!`);
