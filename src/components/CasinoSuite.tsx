@@ -217,7 +217,7 @@ export const CasinoSuite: React.FC<CasinoSuiteProps> = ({
   return (
     <div
       className="flex-1 min-h-0 overflow-y-auto bg-[#05070a] text-slate-100 flex flex-col no-scrollbar"
-      id="sportsim-elite-casino-suite"
+      id="cu-bet-elite-casino-suite"
     >
       {/* Visual Header Banner - only show on lobby */}
       {!activeGame && (
@@ -226,11 +226,11 @@ export const CasinoSuite: React.FC<CasinoSuiteProps> = ({
             <div className="flex items-center gap-2">
               <Gamepad2 className="text-emerald-400 animate-pulse" size={18} />
               <span className="text-[10px] text-emerald-400 font-mono tracking-widest block uppercase font-black">
-                SPORTSIM ELITE LOUNGE
+                CU BET ELITE LOUNGE
               </span>
             </div>
             <h2 className="text-sm font-black text-slate-100 font-sans uppercase tracking-wider mt-1 flex items-center gap-1.5">
-              SportSim Elite Casino Suite
+              CU Bet Elite Casino Suite
               <span className="bg-emerald-500/20 text-emerald-400 text-[8px] font-mono px-1.5 py-0.5 rounded-full select-none tracking-normal font-black animate-pulse">
                 LIVE MULTIPLIERS
               </span>
@@ -461,29 +461,28 @@ export const CasinoSuite: React.FC<CasinoSuiteProps> = ({
               </div>
 
               {/* Low balance warning in game too */}
-              {balance < 10 && !hasClaimedEmergency && (
-                <div className="mx-4 mt-3 bg-red-500/10 border border-red-500/25 rounded-xl px-3 py-2 flex items-center justify-between gap-3 shrink-0">
+              {balance < 50 && (
+                <div className="mx-4 mt-3 bg-red-500/10 border border-red-500/25 rounded-xl px-3 py-2 flex items-center justify-between gap-3 shrink-0 animate-pulse">
                   <div className="flex items-center gap-2">
                     <ShieldAlert size={14} className="text-red-400 shrink-0" />
                     <span className="text-[10px] text-red-300 font-mono">
-                      Low balance! Claim emergency cash to keep playing.
+                      Low balance! Collect a free $1,000.00 emergency grant.
                     </span>
                   </div>
                   <button
                     onClick={() => {
-                      onUpdateBalance((prev) => prev + 500);
-                      setHasClaimedEmergency(true);
+                      onUpdateBalance((prev) => prev + 1000);
                       addLog(
                         "Emergency Grant",
-                        500,
+                        1000,
                         1,
                         "WIN",
-                        "Claimed $500 emergency fund",
+                        "Claimed $1000 emergency fund",
                       );
                     }}
-                    className="bg-emerald-500 text-[#05070a] text-[9px] font-extrabold px-2.5 py-1 rounded-lg cursor-pointer active:scale-95 transition-all whitespace-nowrap uppercase shrink-0"
+                    className="bg-amber-500 hover:bg-amber-450 text-[#05070a] text-[9.5px] font-black px-3 py-1 rounded-lg cursor-pointer active:scale-95 transition-all whitespace-nowrap uppercase shrink-0"
                   >
-                    Claim $500
+                    Claim $1,000
                   </button>
                 </div>
               )}

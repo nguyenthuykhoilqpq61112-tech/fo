@@ -1,6 +1,7 @@
 import React, { useState, useRef } from "react";
 import { Team, Player, Fixture } from "../types";
 import { TeamCrest } from "./TeamCrest";
+import { PitchFormation } from "./PitchFormation";
 import { calculateTeamRating } from "../engine/matchEngine";
 
 interface TeamsListProps {
@@ -234,53 +235,49 @@ export const TeamsList: React.FC<TeamsListProps> = ({ teams, fixtures }) => {
 
               {/* TAB 1: SQUAD ROSTER LISTS */}
               {activeRightTab === "roster" && (
-                <div className="flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar max-h-[420px] glass-scrollbar">
-                  <span className="text-[10px] font-mono font-bold tracking-widest text-slate-400 uppercase block mb-1">
-                    Squad Players (Click cards for details)
+                <div className="flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar max-h-[500px] glass-scrollbar">
+                  
+                  <div className="mb-4">
+                    <span className="text-[10px] font-mono font-bold tracking-widest text-slate-400 uppercase block mb-2">
+                      Starting XI Formation
+                    </span>
+                    <PitchFormation players={sortedPlayers} teamId={selectedTeam.id} />
+                  </div>
+
+                  <span className="text-[10px] font-mono font-bold tracking-widest text-slate-400 uppercase block mb-3 border-b border-white/5 pb-2">
+                    Squad Roster Directory
                   </span>
 
-                  <div className="space-y-2">
+                  <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
                     {sortedPlayers.map(p => {
                       return (
                         <div
                           key={p.id}
                           onClick={() => triggerGlobalEntity("player", p.id)}
-                          className="bg-black/35 border border-white/5 hover:border-emerald-500/35 hover:bg-emerald-500/[0.02] rounded-xl p-2.5 flex items-center justify-between text-xs cursor-pointer transition-all duration-150"
+                          className="bg-black/35 border border-white/5 hover:border-emerald-500/35 hover:bg-emerald-500/[0.08] rounded-xl p-3 flex flex-col justify-between text-xs cursor-pointer transition-all duration-200 shadow-sm min-h-[90px]"
                         >
-                          <div className="space-y-0.5 truncate max-w-[65%]">
-                            <div className="flex items-center gap-1.5">
-                              <span className={`px-1 rounded text-[8px] font-mono font-bold ${
-                                p.position === "GK" ? "bg-red-500/15 text-red-400" :
-                                p.position === "DEF" ? "bg-blue-500/15 text-blue-400" :
-                                p.position === "MID" ? "bg-emerald-500/15 text-emerald-400" : "bg-purple-500/15 text-purple-400"
-                              }`}>
-                                {p.position}
-                              </span>
-                              <span className="font-bold text-slate-300 truncate whitespace-nowrap">
-                                {p.name}
-                              </span>
-                            </div>
-                            
-                            {/* Season player metrics */}
-                            <p className="text-[9px] text-slate-500 font-mono block leading-none">
-                              Pld: {p.matchesPlayed} • Goals: {p.goals} • Ast: {p.assists}
-                              {p.position === "GK" && ` • Svs: ${p.saves}`}
-                            </p>
-                          </div>
-
-                          {/* Player raw quality index */}
-                          <div className="text-right flex items-center gap-2">
-                            <div className="text-[9px] text-slate-400 font-mono leading-tight">
-                              {p.yellowCards > 0 && <span className="bg-yellow-500 text-[10px] px-1 py-0.5 rounded leading-none text-slate-900 border-none mr-1 font-bold">🟨 {p.yellowCards}</span>}
-                              {p.redCards > 0 && <span className="bg-red-600 text-[10px] px-1 py-0.5 rounded leading-none text-slate-100 border-none font-bold">🟥 {p.redCards}</span>}
-                            </div>
-
+                          <div className="flex items-start justify-between mb-2">
+                            <span className={`px-1.5 py-0.5 rounded text-[8px] font-mono font-bold uppercase ${
+                              p.position === "GK" ? "bg-red-500/15 text-red-400" :
+                              p.position === "DEF" ? "bg-blue-500/15 text-blue-400" :
+                              p.position === "MID" ? "bg-emerald-500/15 text-emerald-400" : "bg-purple-500/15 text-purple-400"
+                            }`}>
+                              {p.position}
+                            </span>
                             <div className="bg-black/40 border border-white/5 h-8 w-11 flex flex-col items-center justify-center rounded-lg">
-                              <span className="text-[7px] text-slate-500 font-mono leading-none font-black block uppercase">OVR</span>
-                              <span className="text-[11px] font-black font-mono text-emerald-450 leading-none mt-0.5">
+                              <span className="text-[11px] font-black font-mono text-emerald-450 leading-none">
                                 {p.rating}
                               </span>
                             </div>
+                          </div>
+                          
+                          <div className="flex flex-col gap-0.5 mt-auto">
+                            <span className="font-bold text-slate-200 truncate">
+                              {p.name}
+                            </span>
+                            <span className="text-[8px] text-slate-500 font-mono tracking-tighter truncate leading-tight">
+                              Pld: {p.matchesPlayed} • Gls: {p.goals} • Ast: {p.assists}
+                            </span>
                           </div>
                         </div>
                       );

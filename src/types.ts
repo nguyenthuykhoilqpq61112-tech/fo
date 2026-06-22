@@ -16,12 +16,26 @@ export interface PlayerAbilities {
   positioning?: number;
 }
 
+export interface PlayerSeasonStats {
+  goalsScored: number;
+  assists: number;
+  yellowCards: number;
+  redCards: number;
+  matchesPlayed: number;
+  cleanSheets: number;
+}
+
 export interface Player {
   id: string;
   name: string;
   teamId: string;
   position: Position;
   rating: number; // 50 - 99
+  age: number;
+  fatigue: number;
+  injured: boolean;
+  injuryRecoveryMatches: number;
+  seasonStats: PlayerSeasonStats;
   goals: number;
   assists: number;
   saves: number;
@@ -31,6 +45,16 @@ export interface Player {
   abilities?: PlayerAbilities;
   injuredRounds?: number;
   suspendedRounds?: number;
+}
+
+export interface ClubOwnership {
+  clubId: string;
+  purchasedAt: number;
+  purchasePrice: number;
+  trainingFacilityLevel: number;
+  stadiumLevel: number;
+  totalInvested: number;
+  passiveIncomePerMatch: number;
 }
 
 export interface Team {
@@ -46,6 +70,9 @@ export interface Team {
   lostMatches: number;
   goalsScored: number;
   goalsConceded: number;
+  morale: number;
+  rivalClubIds: string[];
+  ownership?: ClubOwnership;
 }
 
 export type FixtureStatus = "SCHEDULED" | "LIVE" | "FT";
@@ -133,17 +160,38 @@ export interface MatchOdds {
     over: number;
     under: number;
     line: number;
-  };
+  }[];
   overUnderCards?: {
     over: number;
     under: number;
     line: number;
-  };
+  }[];
   overUnderSaves?: {
     over: number;
     under: number;
     line: number;
-  };
+  }[];
+}
+
+export type WeatherCondition = 
+  'Clear Sky' | 'Clear Skies' | 'Overcast' | 'Light Rain' | 'Heavy Rain' | 'Pouring Rain' |
+  'Thunderstorm' | 'Snow' | 'Blizzard' | 'Heatwave' | 'Fierce Wind' | 'Fierce Derby';
+
+export interface WeatherModifiers {
+  condition: WeatherCondition;
+  yellowCardMultiplier: number;
+  goalProbabilityMultiplier: number;
+  foulRateMultiplier: number;
+  volatilityMultiplier: number;
+  isRivalryDerby?: boolean;
+}
+
+export interface CardTracker {
+  playerId: string;
+  playerName: string;
+  clubId: string;
+  yellowCount: number;
+  isRedCarded: boolean;
 }
 
 export interface Fixture {
@@ -160,6 +208,9 @@ export interface Fixture {
   currentMinute: number;
   elapsedTicks: number; // For tick-by-tick monitoring
   penaltyScore?: string; // e.g. "4-3" or "5-4" or null when shootout is decided
+  weather: WeatherCondition;
+  weatherModifiers?: WeatherModifiers;
+  cardTrackers?: CardTracker[];
 }
 
 export interface BetSelection {
@@ -178,10 +229,11 @@ export interface BetTicket {
   totalOdds: number;
   stake: number;
   potentialPayout: number;
-  status: "PENDING" | "WON" | "LOST" | "VOID";
+  status: "PENDING" | "WON" | "LOST" | "VOID" | "CASHED_OUT";
   timestamp: number;
   // For single mode: maps selection key (fixtureId-marketType-selectionId) to individual stake
   selectionStakes?: { [selId: string]: number };
+  cashedOutAmount?: number;
 }
 
 export interface Profile {
@@ -191,6 +243,46 @@ export interface Profile {
   tickets: BetTicket[];
   currentRoundIndex: number;
   createdTime: number;
+  purchasedItems?: PurchasedItem[];
+  bankrollHistory?: { timestamp: number; balance: number; detail: string }[];
+}
+
+export type ItemRarity = 'Common' | 'Rare' | 'Ultra Rare' | 'Legendary';
+export type LuxuryCategory = 
+  'Hypercars' | 'Private Aviation' | 'Superyachts' | 
+  'Real Estate' | 'Watches' | 'Jewellery' | 
+  'Fashion' | 'Fine Art' | 'Spirits' | 'Experiences' | 'Cars' | 'Jets' | 'Yachts' | 'Devices' | 'Businesses';
+
+export interface LuxuryItem {
+  id: string;
+  name: string;
+  price: number;
+  category: LuxuryCategory;
+  description: string;
+  imageUrl: string;
+  emoji?: string;
+  rarity: ItemRarity;
+  owned: boolean;
+}
+
+export interface PurchasedItem {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  worth: number; // what it is worth on cash-in
+  icon: string;
+  dateStr: string;
+  imageUrl?: string;
+  category?: LuxuryCategory;
+  rarity?: ItemRarity;
+}
+
+export interface TipsterTip {
+  matchId: string;
+  content: string;
+  tipType: 'injury_report' | 'morale_reveal' | 'value_bet' | 'derby_warning' | 'syndicate';
+  timestamp: number;
 }
 
 export interface Tipster {
@@ -204,4 +296,56 @@ export interface Tipster {
   betsTotal: number;
   riskProfile: "SAFE" | "BALANCED" | "AGGRESSIVE";
   recentTips: string[];
+  specialty?: string;
+  costPerMatchday?: number;
+  isHired?: boolean;
+  tipsThisMatchday?: TipsterTip[];
+}
+
+export interface AuctionListing {
+  id: string;
+  ticketId: string;
+  legsWon: number;
+  legsTotal: number;
+  remainingOdds: number;
+  stakePlaced: number;
+  currentBid: number;
+  bidder: string;
+  roundsLeft: number;
+  listedAt: number;
+}
+
+export interface ExchangeAsset {
+  id: string;
+  symbol: string;
+  name: string;
+  currentPrice: number;
+  initialPrice: number;
+  volatility: number;
+  assetClass: 'crypto' | 'stock' | 'commodity';
+  priceHistory: number[];
+  userHolding: number;
+}
+
+export interface LeaderboardEntry {
+  userId: string;
+  username: string;
+  totalWon: number;
+  totalWagered: number;
+  biggestWin: number;
+  roi: number;
+  winRate: number;
+  rank: number;
+}
+
+export type BetBuilderMarket = 
+  'match_result' | 'btts' | 'total_goals' | 
+  'first_scorer' | 'player_scorer' | 'total_cards' | 
+  'total_corners' | 'home_clean_sheet' | 'away_clean_sheet';
+
+export interface BetBuilderSelection {
+  matchId: string;
+  market: BetBuilderMarket;
+  selection: string;
+  rawOdds: number;
 }

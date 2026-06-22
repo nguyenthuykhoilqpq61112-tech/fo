@@ -1,4 +1,6 @@
 import { Fixture, Team, Player, MatchOdds, MatchEvent, MatchStats, Position } from "../types";
+import { processFouls } from "./foulCardEngine";
+import { getWeatherModifiers } from "./weatherEngine";
 
 // Helper to calculate team average rating based on players
 export function calculateTeamRating(team: Team): number {
@@ -146,23 +148,41 @@ export function generateMatchOdds(homeTeam: Team, awayTeam: Team): MatchOdds {
     over4_5: overUnderRaw(4.5).over, under4_5: overUnderRaw(4.5).under,
   };
 
-  const overUnderCorners = {
-    line: 9.5,
-    over: Math.max(1.5, Math.round((1 / (0.6 / margin)) * 100) / 100),
-    under: Math.max(1.5, Math.round((1 / (0.4 / margin)) * 100) / 100)
-  };
+  const cornersBaseLines = [7.5, 8.5, 9.5, 10.5, 11.5];
+  const overUnderCorners = cornersBaseLines.map((line) => {
+    const diffLine = line - 9.5;
+    const overProb = Math.max(0.05, Math.min(0.95, 0.6 - diffLine * 0.15));
+    const underProb = 1.0 - overProb;
+    return {
+      line,
+      over: Math.max(1.01, Math.round((1 / (overProb / margin)) * 100) / 100),
+      under: Math.max(1.01, Math.round((1 / (underProb / margin)) * 100) / 100)
+    };
+  });
 
-  const overUnderCards = {
-    line: 3.5,
-    over: Math.max(1.5, Math.round((1 / (0.45 / margin)) * 100) / 100),
-    under: Math.max(1.5, Math.round((1 / (0.55 / margin)) * 100) / 100)
-  };
+  const cardsBaseLines = [2.5, 3.5, 4.5, 5.5];
+  const overUnderCards = cardsBaseLines.map((line) => {
+    const diffLine = line - 3.5;
+    const overProb = Math.max(0.05, Math.min(0.95, 0.45 - diffLine * 0.15));
+    const underProb = 1.0 - overProb;
+    return {
+      line,
+      over: Math.max(1.01, Math.round((1 / (overProb / margin)) * 100) / 100),
+      under: Math.max(1.01, Math.round((1 / (underProb / margin)) * 100) / 100)
+    };
+  });
 
-  const overUnderSaves = {
-    line: 7.5,
-    over: Math.max(1.5, Math.round((1 / (0.5 / margin)) * 100) / 100),
-    under: Math.max(1.5, Math.round((1 / (0.5 / margin)) * 100) / 100)
-  };
+  const savesBaseLines = [4.5, 5.5, 6.5, 7.5, 8.5];
+  const overUnderSaves = savesBaseLines.map((line) => {
+    const diffLine = line - 6.5;
+    const overProb = Math.max(0.05, Math.min(0.95, 0.5 - diffLine * 0.12));
+    const underProb = 1.0 - overProb;
+    return {
+      line,
+      over: Math.max(1.01, Math.round((1 / (overProb / margin)) * 100) / 100),
+      under: Math.max(1.01, Math.round((1 / (underProb / margin)) * 100) / 100)
+    };
+  });
 
   return {
     homeWin: homeWinOdds,
@@ -321,6 +341,11 @@ export function simulateMatchTick(
     updatedFixture.status = "LIVE";
   }
 
+  // Ensure weather modifiers are initialized
+  if (!updatedFixture.weatherModifiers) {
+    updatedFixture.weatherModifiers = getWeatherModifiers(updatedFixture.weather || "Clear Sky");
+  }
+
   // Handle Match kickoff & intervals
   if (currentTick === 1) {
     const hasKickoff = updatedFixture.events.some(ev => ev.type === "KICKOFF");
@@ -328,7 +353,7 @@ export function simulateMatchTick(
       updatedFixture.events.push({
         minute: 1,
         type: "KICKOFF",
-        commentary: `Kick-off! The match between ${homeTeam.name} and ${awayTeam.name} is underway under beautiful stadium lights.`
+        commentary: `Kick-off! The match between ${homeTeam.name} and ${awayTeam.name} is underway under ${updatedFixture.weather} conditions.`
       });
     }
   }
@@ -336,6 +361,10 @@ export function simulateMatchTick(
   // Compute active squads using our real-time lineup and sub engine
   let homeActive = getTeamActivePlayers(homeTeam, updatedFixture.events);
   let awayActive = getTeamActivePlayers(awayTeam, updatedFixture.events);
+
+  // Run foul processor independently (22% per tick logic is handled inside)
+  processFouls(updatedFixture, "away", awayTeam, awayActive.onField, matchMinute, updatedFixture.weatherModifiers);
+  processFouls(updatedFixture, "home", homeTeam, homeActive.onField, matchMinute, updatedFixture.weatherModifiers);
 
   // Dynamic random injury chance (1.5% chance per tick to get a realistic injury and sub)
   if (Math.random() < 0.015) {
@@ -367,7 +396,14 @@ export function simulateMatchTick(
   }
 
   // Event generation probability (~45% chance of an event in normal, ~30% in ET)
-  const eventChance = currentTick <= 15 ? 0.45 : 0.30;
+  let eventChance = currentTick <= 15 ? 0.45 : 0.30;
+  
+  if (updatedFixture.weather === "Blizzard") {
+    eventChance -= 0.15; // less events -> depresses scores
+  } else if (updatedFixture.weather === "Heatwave" && matchMinute > 75) {
+    eventChance += 0.25; // extremely tired defenses -> more late events
+  }
+
   const isEvent = Math.random() < eventChance;
 
   if (isEvent) {
@@ -390,7 +426,14 @@ export function simulateMatchTick(
     const defendingActive = isHomeAttack ? awayActive : homeActive;
 
     // Randomize the nature of the action
-    const actionRand = Math.random();
+    let actionRand = Math.random();
+    
+    if (updatedFixture.weather === "Pouring Rain") {
+      // Pouring rain increases the odds of a foul (which is at the upper end of the random scale)
+      actionRand = Math.min(1.0, actionRand + 0.20); 
+    } else if (updatedFixture.weather === "Blizzard") {
+      actionRand = Math.min(1.0, actionRand + 0.15); // Blizzard shifts away from goals somewhat too
+    }
 
     if (actionRand < 0.32) {
       // ⚽ GOAL SCORING CHANCE SUCCESS
@@ -483,61 +526,6 @@ export function simulateMatchTick(
       }
 
     } else if (actionRand < 0.90) {
-      // ⚠️ FOUL & CARDS (Yellow / Red)
-      const defenderPlayers = defendingActive.onField.filter(p => p.position !== "GK");
-      
-      if (defenderPlayers.length > 0) {
-        const offendingPlayer = defenderPlayers[Math.floor(Math.random() * defenderPlayers.length)];
-        const cardRand = Math.random();
-        
-        if (cardRand < 0.03) {
-          // Red Card! (Highly realistic frequency)
-          updatedFixture.stats[defendingSide].redCards += 1;
-          const commentaryTemplate = cardCommentaries[4]; // last man / reckless
-          
-          updatedFixture.events.push({
-            minute: matchMinute,
-            type: "RED_CARD",
-            teamId: defendingTeam.id,
-            playerId: offendingPlayer.id,
-            playerName: offendingPlayer.name,
-            commentary: `🟥 RED CARD! ${offendingPlayer.name} ${commentaryTemplate}`
-          });
-
-          // Handle double cards walkoff in remainder of the tick
-          if (defendingSide === "home") {
-            homeActive = getTeamActivePlayers(homeTeam, updatedFixture.events);
-          } else {
-            awayActive = getTeamActivePlayers(awayTeam, updatedFixture.events);
-          }
-
-        } else if (cardRand < 0.45) {
-          // Yellow Card
-          updatedFixture.stats[defendingSide].yellowCards += 1;
-          const commentaryTemplate = cardCommentaries[Math.floor(Math.random() * 3)];
-          
-          updatedFixture.events.push({
-            minute: matchMinute,
-            type: "YELLOW_CARD",
-            teamId: defendingTeam.id,
-            playerId: offendingPlayer.id,
-            playerName: offendingPlayer.name,
-            commentary: `🟨 Yellow Card. ${offendingPlayer.name} ${commentaryTemplate}`
-          });
-
-        } else {
-          // Regular Foul
-          updatedFixture.stats[defendingSide].fouls += 1;
-          const commentaryTemplate = foulCommentaries[Math.floor(Math.random() * foulCommentaries.length)];
-          
-          updatedFixture.events.push({
-            minute: matchMinute,
-            type: "FOUL",
-            commentary: `⚠️ Foul. ${offendingPlayer.name} ${commentaryTemplate}`
-          });
-        }
-      }
-    } else {
       // Passes & Corners increase
       updatedFixture.stats.home.passes += Math.floor(Math.random() * 25) + 15;
       updatedFixture.stats.away.passes += Math.floor(Math.random() * 25) + 15;
@@ -549,11 +537,67 @@ export function simulateMatchTick(
         type: "COMMENTARY",
         commentary: `🚩 Corner kick for ${attackingTeam.name}. The cross comes flying into the box but is headed away by defenders.`
       });
+    } else {
+      updatedFixture.stats.home.passes += Math.floor(Math.random() * 15) + 5;
+      updatedFixture.stats.away.passes += Math.floor(Math.random() * 15) + 5;
     }
   } else {
     // Passive minutes - increment statistics passes
     updatedFixture.stats.home.passes += Math.floor(Math.random() * 20) + 10;
     updatedFixture.stats.away.passes += Math.floor(Math.random() * 20) + 10;
+  }
+
+  // --- SHIFT IN-PLAY ODDS EVERY TICK BASED ON SCORELINE ---
+  if (currentTick >= 1 && currentTick <= 15) {
+    const diff = updatedFixture.homeScore - updatedFixture.awayScore;
+    let homeShift = 1.0;
+    let awayShift = 1.0;
+    let drawShift = 1.0;
+
+    // Remaining match time fraction (1.0 = full time remaining, 0.0 = match ended)
+    const timeRemaining = Math.max(0, 90 - matchMinute) / 90;
+
+    // A difference of 1 goal
+    if (diff === 1) {
+      homeShift = 0.5 + timeRemaining * 0.4;
+      awayShift = 3.0 - timeRemaining * 1.5;
+      drawShift = 2.0 - timeRemaining * 0.8;
+    } else if (diff === -1) {
+      homeShift = 3.0 - timeRemaining * 1.5;
+      awayShift = 0.5 + timeRemaining * 0.4;
+      drawShift = 2.0 - timeRemaining * 0.8;
+    } else if (diff === 2) {
+      homeShift = 0.15 + timeRemaining * 0.2;
+      awayShift = 8.0 - timeRemaining * 3.0;
+      drawShift = 4.0 - timeRemaining * 1.5;
+    } else if (diff === -2) {
+      homeShift = 8.0 - timeRemaining * 3.0;
+      awayShift = 0.15 + timeRemaining * 0.2;
+      drawShift = 4.0 - timeRemaining * 1.5;
+    } else if (diff >= 3) {
+      homeShift = 0.01;
+      awayShift = 50.0;
+      drawShift = 20.0;
+    } else if (diff <= -3) {
+      homeShift = 50.0;
+      awayShift = 0.01;
+      drawShift = 20.0;
+    } else { // diff === 0
+      homeShift = 1.0 + (1.0 - timeRemaining) * 0.5;
+      awayShift = 1.0 + (1.0 - timeRemaining) * 0.5;
+      drawShift = Math.max(0.01, 1.0 - (1.0 - timeRemaining) * 0.8);
+    }
+
+    updatedFixture.odds.homeWin = Math.max(1.01, Math.round((updatedFixture.odds.homeWin * homeShift) * 100) / 100);
+    updatedFixture.odds.awayWin = Math.max(1.01, Math.round((updatedFixture.odds.awayWin * awayShift) * 100) / 100);
+    updatedFixture.odds.draw = Math.max(1.01, Math.round((updatedFixture.odds.draw * drawShift) * 100) / 100);
+
+    // If up by 4, disable odds (return NaN or something so they are handled as disabled)
+    if (Math.abs(diff) >= 4) {
+      updatedFixture.odds.homeWin = NaN;
+      updatedFixture.odds.awayWin = NaN;
+      updatedFixture.odds.draw = NaN;
+    }
   }
 
   // Half time Check

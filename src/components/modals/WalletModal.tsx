@@ -49,7 +49,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
         <div className="text-center space-y-1 select-none">
           <span className="text-2xl block">🏦</span>
           <h3 className="text-sm font-black tracking-wider uppercase text-emerald-400 font-sans mt-2">
-            SportSim Wallet Centre
+            CU Bet Wallet Centre
           </h3>
           <p className="text-[9px] text-slate-400 font-mono tracking-tight">
             SECURE TRANSACTION PORTAL
@@ -120,6 +120,26 @@ export const WalletModal: React.FC<WalletModalProps> = ({
             </button>
           ))}
         </div>
+
+        {balance < 50 && (
+          <div className="bg-amber-500/10 border border-amber-500/20 p-3 rounded-xl text-center space-y-2 animate-fade-in">
+            <span className="text-[10px] text-amber-400 font-mono uppercase font-black block">
+              ⚠️ EMERGENCY FUNDS AVAILABLE
+            </span>
+            <p className="text-[9px] text-slate-400">
+              Your balance is critically low. Collect a $1,000.00 cash grant to continue wagering!
+            </p>
+            <button
+              onClick={() => {
+                onConfirmTransaction(1000, "DEPOSIT");
+                setWalletSuccessMsg("Claimed $1,000.00 Emergency Grant!");
+              }}
+              className="w-full py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[10px] rounded-lg tracking-wider uppercase cursor-pointer transition-colors"
+            >
+              Collect $1,000 Grant
+            </button>
+          </div>
+        )}
 
         {walletSuccessMsg && (
           <div className="text-[10px] bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 p-2 rounded-xl text-center font-bold">

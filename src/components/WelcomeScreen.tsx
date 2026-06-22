@@ -20,6 +20,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   const [balance, setBalance] = useState<number>(1000);
   const [mode, setMode] = useState<"TOURNAMENT" | "LEAGUE">("TOURNAMENT");
   const [selectedSlot, setSelectedSlot] = useState<number>(1);
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{mode: "TOURNAMENT" | "LEAGUE", slot: number} | null>(null);
 
   // Selection presets for starting bankroll budget
   const balancePresets = [500, 1000, 2500, 5000];
@@ -31,12 +32,13 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black text-slate-100 flex items-center justify-center p-4 relative overflow-hidden font-sans select-none" id="welcome-gate-screen">
-      {/* Background visual graphics - football pitch subtle glows */}
-      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-emerald-500/5 blur-[120px] pointer-events-none"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-blue-500/5 blur-[120px] pointer-events-none"></div>
+    <div className="h-screen w-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black text-slate-100 overflow-y-auto overflow-x-hidden font-sans select-none relative" id="welcome-gate-screen">
+      <div className="min-h-full w-full flex items-center justify-center p-4 py-12 relative">
+        {/* Background visual graphics - football pitch subtle glows */}
+        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-emerald-500/5 blur-[120px] pointer-events-none"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-blue-500/5 blur-[120px] pointer-events-none"></div>
 
-      <div className="max-w-4xl w-full grid grid-cols-1 md:grid-cols-12 gap-8 z-10 my-auto items-stretch">
+        <div className="max-w-4xl w-full grid grid-cols-1 md:grid-cols-12 gap-8 z-10 my-auto items-stretch">
         
         {/* Left Side: Brand Concept Panel */}
         <div className="md:col-span-5 flex flex-col justify-between p-8 rounded-3xl bg-slate-900/40 border border-white/5 backdrop-blur-md relative">
@@ -48,7 +50,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             
             <div className="space-y-2">
               <h1 className="text-3xl font-black uppercase tracking-wider text-slate-100 font-sans leading-none">
-                Sport<span className="text-emerald-400">Sim</span>
+                CU <span className="text-emerald-400">Bet</span>
               </h1>
               <p className="text-xs text-slate-400 font-mono tracking-widest uppercase">
                 Campaign Seeding Arena
@@ -56,7 +58,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             </div>
 
             <p className="text-xs text-slate-400 leading-relaxed">
-              Step into the ultimate visual sports betting and matches simulator. Take charge of a football club championship campaign as a general manager and elite bet predictor.
+              Step into the ultimate visual betting and matches simulator. Take charge of a football club championship campaign as a general manager and elite bet predictor.
             </p>
           </div>
 
@@ -97,7 +99,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                               </button>
                               <button
                                 type="button"
-                                onClick={() => onDeleteSave("TOURNAMENT", slot)}
+                                onClick={() => setDeleteConfirmation({ mode: "TOURNAMENT", slot })}
                                 className="text-red-400 hover:text-red-300 hover:bg-red-500/10 p-1 rounded-md transition-all cursor-pointer h-5 w-5 flex items-center justify-center border border-white/5 text-[9px]"
                                 title="Delete Save Slot"
                               >
@@ -144,7 +146,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                               </button>
                               <button
                                 type="button"
-                                onClick={() => onDeleteSave("LEAGUE", slot)}
+                                onClick={() => setDeleteConfirmation({ mode: "LEAGUE", slot })}
                                 className="text-red-400 hover:text-red-300 hover:bg-red-500/10 p-1 rounded-md transition-all cursor-pointer h-5 w-5 flex items-center justify-center border border-white/5 text-[9px]"
                                 title="Delete Save Slot"
                               >
@@ -322,6 +324,39 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
         </div>
       </div>
+    </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmation && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-900 border border-red-500/30 rounded-2xl p-6 max-w-sm w-full space-y-4 shadow-xl shadow-red-500/10 animate-fade-in text-center flex flex-col items-center">
+            <div className="h-12 w-12 rounded-full bg-red-500/10 text-red-500 flex items-center justify-center mb-2">
+              <Trash2 size={24} />
+            </div>
+            <h3 className="text-lg font-black text-slate-100 uppercase tracking-widest font-sans">Delete Save?</h3>
+            <p className="text-xs text-slate-400">
+              Are you sure you want to permanently delete the <span className="text-white font-bold">{deleteConfirmation.mode}</span> save in <span className="text-white font-bold">Slot {deleteConfirmation.slot}</span>? This action cannot be undone.
+            </p>
+            <div className="grid grid-cols-2 gap-3 w-full pt-4">
+              <button
+                onClick={() => setDeleteConfirmation(null)}
+                className="py-2.5 rounded-xl border border-white/10 hover:bg-white/5 text-xs font-bold text-slate-300 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  onDeleteSave(deleteConfirmation.mode, deleteConfirmation.slot);
+                  setDeleteConfirmation(null);
+                }}
+                className="py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-slate-950 font-black text-xs transition-colors shadow-lg shadow-red-500/20"
+              >
+                Delete Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import { Team, Player, Fixture, FixtureStatus, MatchStats } from "../types";
+import { Team, Player, Fixture, FixtureStatus, MatchStats, WeatherCondition } from "../types";
 import { getInitialTeams } from "./teams";
 import { generateMatchOdds } from "../engine/matchEngine";
 
@@ -12,6 +12,14 @@ function shuffleArray<T>(array: T[]): T[] {
     arr[j] = temp;
   }
   return arr;
+}
+
+export function generateRandomWeather(): WeatherCondition {
+  const rand = Math.random();
+  if (rand < 0.6) return "Clear Skies";
+  if (rand < 0.8) return "Pouring Rain";
+  if (rand < 0.9) return "Blizzard";
+  return "Heatwave";
 }
 
 export function createEmptyStats(): MatchStats {
@@ -35,6 +43,7 @@ export function initializeNewTournament(): { teams: Team[]; fixtures: Fixture[] 
     
     // Odds
     const odds = generateMatchOdds(home, away);
+    const weather = generateRandomWeather();
     
     fixtures.push({
       id: `r0-f${i}`,
@@ -48,7 +57,8 @@ export function initializeNewTournament(): { teams: Team[]; fixtures: Fixture[] 
       events: [],
       odds,
       currentMinute: 0,
-      elapsedTicks: 0
+      elapsedTicks: 0,
+      weather
     });
   }
 
@@ -90,6 +100,7 @@ export function generateNextRoundFixtures(
     const awayTeam = teamMap.get(awayId)!;
     
     const odds = generateMatchOdds(homeTeam, awayTeam);
+    const weather = generateRandomWeather();
 
     nextFixtures.push({
       id: `r${nextRoundIndex}-f${i}`,
@@ -103,7 +114,8 @@ export function generateNextRoundFixtures(
       events: [],
       odds,
       currentMinute: 0,
-      elapsedTicks: 0
+      elapsedTicks: 0,
+      weather
     });
   }
 
@@ -149,6 +161,12 @@ export function updateRostersAndStatsAfterFixture(
     else if (isLoss) nextLost += 1;
     else if (isDraw) nextDrawn += 1;
 
+    // Handle Morale
+    let nextMorale = t.morale || 60;
+    if (isWin) nextMorale = Math.min(100, nextMorale + Math.floor(Math.random() * 6) + 4); // +4 to +9
+    else if (isLoss) nextMorale = Math.max(0, nextMorale - Math.floor(Math.random() * 6) - 4); // -4 to -9
+    else if (isDraw) nextMorale = Math.max(0, Math.min(100, nextMorale + Math.floor(Math.random() * 5) - 2)); // -2 to +2
+
     // Track players updates
     const nextPlayers = t.players.map(p => {
       const pStats = { ...p };
@@ -156,38 +174,55 @@ export function updateRostersAndStatsAfterFixture(
       // If previously suspended or injured, decrement their downtime and they sit this match out
       if (p.suspendedRounds && p.suspendedRounds > 0) {
         pStats.suspendedRounds = p.suspendedRounds - 1;
+        pStats.fatigue = Math.max(0, (pStats.fatigue || 0) - 20); // Recovers if suspended
+      } else if (p.injuryRecoveryMatches && p.injuryRecoveryMatches > 0) {
+        pStats.injuryRecoveryMatches = p.injuryRecoveryMatches - 1;
+        if (pStats.injuryRecoveryMatches === 0) pStats.injured = false;
+        pStats.fatigue = Math.max(0, (pStats.fatigue || 0) - 30); // Recovers heavily if injured
       } else if (p.injuredRounds && p.injuredRounds > 0) {
+        // legacy compatibility
         pStats.injuredRounds = p.injuredRounds - 1;
       } else {
         // Active and played
         pStats.matchesPlayed += 1;
+        pStats.seasonStats.matchesPlayed += 1;
+        
+        // Increase fatigue
+        pStats.fatigue = Math.min(100, (pStats.fatigue || 0) + Math.floor(Math.random() * 10) + 5); 
       }
+
+      // Base recovery for all players between matchdays
+      pStats.fatigue = Math.max(0, (pStats.fatigue || 0) - 5);
 
       // 1. Accumulate Goals and Assists inside events
       completedFixture.events.forEach(ev => {
         if (ev.type === "GOAL") {
           if (ev.playerId === p.id) {
             pStats.goals += 1;
+            pStats.seasonStats.goalsScored += 1;
           }
           if (ev.assistantPlayerId === p.id) {
             pStats.assists += 1;
+            pStats.seasonStats.assists += 1;
           }
         } else if (ev.type === "SAVE" && ev.playerId === p.id) {
           pStats.saves += 1;
         } else if (ev.type === "YELLOW_CARD" && ev.playerId === p.id) {
           pStats.yellowCards += 1;
+          pStats.seasonStats.yellowCards += 1;
         } else if (ev.type === "RED_CARD" && ev.playerId === p.id) {
           pStats.redCards += 1;
+          pStats.seasonStats.redCards += 1;
           pStats.suspendedRounds = 1; // Suspended for next round
         } else if (ev.type === "COMMENTARY" && ev.commentary && ev.commentary.includes("INJURY SUB") && ev.playerId === p.id) {
-          pStats.injuredRounds = 1; // Injured for next round
+          pStats.injured = true;
+          pStats.injuryRecoveryMatches = Math.floor(Math.random() * 3) + 1; // 1 to 3 matches
         }
       });
 
       // 2. GK Clean sheet accounting (if conceded 0 goals)
       if (p.position === "GK" && goalsConcededInMatch === 0) {
-        // We can track clean sheets inside the GK objects using custom criteria or saves
-        // Clean sheets are dynamic goals-conceded tracker
+        pStats.seasonStats.cleanSheets += 1;
       }
 
       return pStats;
@@ -200,6 +235,7 @@ export function updateRostersAndStatsAfterFixture(
       drawnMatches: nextDrawn,
       goalsScored: t.goalsScored + goalsScoredInMatch,
       goalsConceded: t.goalsConceded + goalsConcededInMatch,
+      morale: nextMorale,
       players: nextPlayers
     };
   });
@@ -245,6 +281,7 @@ export function initializeNewLeague(): { teams: Team[]; fixtures: Fixture[] } {
       const finalAway = (round + i) % 2 === 0 ? away : home;
       
       const odds = generateMatchOdds(finalHome, finalAway);
+      const weather = generateRandomWeather();
       fixtures.push({
         id: `l-r${round}-f${i}`,
         homeTeamId: finalHome.id,
@@ -257,7 +294,8 @@ export function initializeNewLeague(): { teams: Team[]; fixtures: Fixture[] } {
         events: [],
         odds,
         currentMinute: 0,
-        elapsedTicks: 0
+        elapsedTicks: 0,
+        weather
       });
     }
     

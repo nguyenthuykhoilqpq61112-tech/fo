@@ -3,6 +3,7 @@ import { Fixture, Team, BetSelection, MarketType } from "../types";
 import { TeamCrest } from "./TeamCrest";
 import { Info, X } from "lucide-react";
 import { InfoButton } from "./InfoButton";
+import { getLiveInPlayOdds } from "../utils";
 
 interface FixturesOddsProps {
   fixtures: Fixture[];
@@ -45,15 +46,22 @@ export const FixturesOdds: React.FC<FixturesOddsProps> = ({
     );
   };
 
+  // Helper to calculate modal dynamic in-play odds
+  const getModalLiveOdds = (marketType: MarketType, selId: string, base: number): number | null => {
+    if (!activeFixture) return base;
+    return getLiveInPlayOdds(activeFixture, marketType, selId, base);
+  };
+
   // Helper to toggle a selection
   const handleMarketClick = (
     fixture: Fixture,
     marketType: MarketType,
     selectionId: string,
-    odds: number,
+    odds: number | null,
     details: string,
     marketName: string
   ) => {
+    if (odds === null) return;
     const active = isSelected(fixture.id, marketType, selectionId);
     if (active) {
       onRemoveSelection(fixture.id, marketType, selectionId);
@@ -96,8 +104,13 @@ export const FixturesOdds: React.FC<FixturesOddsProps> = ({
           {roundFixtures.map(fixture => {
             const homeTeam = getTeam(fixture.homeTeamId);
             const awayTeam = getTeam(fixture.awayTeamId);
-            const isLive = fixture.status === "LIVE";
             const isFT = fixture.status === "FT";
+            const isHalfTimePause = fixture.status === "LIVE" && fixture.elapsedTicks >= 7 && sessionStorage.getItem(`ht_resume_${fixture.id}`) !== "true";
+            const isLive = fixture.status === "LIVE" && !isHalfTimePause;
+            const isBettingDisabled = isFT;
+            const getLiveOdds = (mType: MarketType, selId: string, base: number): number | null => {
+              return getLiveInPlayOdds(fixture, mType, selId, base);
+            };
 
             return (
               <div
@@ -107,6 +120,8 @@ export const FixturesOdds: React.FC<FixturesOddsProps> = ({
                     ? "border-white/5 opacity-55" 
                     : isLive 
                     ? "border-red-500/30 shadow-sm" 
+                    : isHalfTimePause 
+                    ? "border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.2)]"
                     : "border-white/5 hover:border-white/15 hover:bg-white/5"
                 }`}
               >
@@ -184,86 +199,94 @@ export const FixturesOdds: React.FC<FixturesOddsProps> = ({
                   </div>
                 </div>
 
-                {/* 1X2 market Betting buttons (Locked if FT) */}
-                <div className="px-3 pb-3 grid grid-cols-3 gap-2 border-b border-white/5">
-                  <button
-                    disabled={isFT || isLive}
-                    onClick={() =>
-                      handleMarketClick(
-                        fixture,
-                        "MATCH_WINNER",
-                        "HOME",
-                        fixture.odds.homeWin,
-                        `${homeTeam.shortName} to Win`,
-                        "Match Winner"
-                      )
-                    }
-                    className={`py-2 rounded-xl flex flex-col items-center justify-center border transition-all cursor-pointer ${
-                      isFT || isLive
-                        ? "bg-black/30 border-transparent text-slate-600 cursor-not-allowed"
-                        : isSelected(fixture.id, "MATCH_WINNER", "HOME")
-                        ? "bg-emerald-500/15 border-emerald-500 text-emerald-400 font-bold"
-                        : "bg-black/20 border-white/5 text-slate-300 hover:border-white/15 hover:bg-white/5"
-                    }`}
-                  >
-                    <span className="text-[9px] text-slate-400 font-bold block leading-none">HOME</span>
-                    <span className="text-[11px] font-mono font-black tracking-tight leading-none mt-1 text-slate-100">
-                      @{fixture.odds.homeWin.toFixed(2)}
-                    </span>
-                  </button>
+                {/* 1X2 market Betting buttons (Locked if FT or suspended) */}
+                {(() => {
+                  const homeOdds = getLiveOdds("MATCH_WINNER", "HOME", fixture.odds.homeWin);
+                  const drawOdds = getLiveOdds("MATCH_WINNER", "DRAW", fixture.odds.draw);
+                  const awayOdds = getLiveOdds("MATCH_WINNER", "AWAY", fixture.odds.awayWin);
+                  
+                  return (
+                    <div className="px-3 pb-3 grid grid-cols-3 gap-2 border-b border-white/5">
+                      <button
+                        disabled={isBettingDisabled || homeOdds === null}
+                        onClick={() =>
+                          handleMarketClick(
+                            fixture,
+                            "MATCH_WINNER",
+                            "HOME",
+                            homeOdds,
+                            `${homeTeam.shortName} to Win`,
+                            "Match Winner"
+                          )
+                        }
+                        className={`py-2 rounded-xl flex flex-col items-center justify-center border transition-all cursor-pointer ${
+                          isBettingDisabled || homeOdds === null
+                            ? "bg-black/30 border-transparent text-slate-600 cursor-not-allowed opacity-50"
+                            : isSelected(fixture.id, "MATCH_WINNER", "HOME")
+                            ? "bg-emerald-500/15 border-emerald-500 text-emerald-400 font-bold"
+                            : "bg-black/20 border-white/5 text-slate-300 hover:border-white/15 hover:bg-white/5"
+                        }`}
+                      >
+                        <span className="text-[9px] text-slate-400 font-bold block leading-none">HOME</span>
+                        <span className="text-[11px] font-mono font-black tracking-tight leading-none mt-1 text-slate-100">
+                          {homeOdds !== null ? `@${homeOdds.toFixed(2)}` : "🔒 SUSP"}
+                        </span>
+                      </button>
 
-                  <button
-                    disabled={isFT || isLive}
-                    onClick={() =>
-                      handleMarketClick(
-                        fixture,
-                        "MATCH_WINNER",
-                        "DRAW",
-                        fixture.odds.draw,
-                        `Draw: ${homeTeam.shortName} vs ${awayTeam.shortName}`,
-                        "Match Winner"
-                      )
-                    }
-                    className={`py-2 rounded-xl flex flex-col items-center justify-center border transition-all cursor-pointer ${
-                      isFT || isLive
-                        ? "bg-black/30 border-transparent text-slate-600 cursor-not-allowed"
-                        : isSelected(fixture.id, "MATCH_WINNER", "DRAW")
-                        ? "bg-emerald-500/15 border-emerald-500 text-emerald-400 font-bold"
-                        : "bg-black/20 border-white/5 text-slate-300 hover:border-white/15 hover:bg-white/5"
-                    }`}
-                  >
-                    <span className="text-[9px] text-slate-400 font-bold block leading-none">DRAW</span>
-                    <span className="text-[11px] font-mono font-black tracking-tight leading-none mt-1 text-slate-100">
-                      @{fixture.odds.draw.toFixed(2)}
-                    </span>
-                  </button>
+                      <button
+                        disabled={isBettingDisabled || drawOdds === null}
+                        onClick={() =>
+                          handleMarketClick(
+                            fixture,
+                            "MATCH_WINNER",
+                            "DRAW",
+                            drawOdds,
+                            `Draw: ${homeTeam.shortName} vs ${awayTeam.shortName}`,
+                            "Match Winner"
+                          )
+                        }
+                        className={`py-2 rounded-xl flex flex-col items-center justify-center border transition-all cursor-pointer ${
+                          isBettingDisabled || drawOdds === null
+                            ? "bg-black/30 border-transparent text-slate-600 cursor-not-allowed opacity-50"
+                            : isSelected(fixture.id, "MATCH_WINNER", "DRAW")
+                            ? "bg-emerald-500/15 border-emerald-500 text-emerald-400 font-bold"
+                            : "bg-black/20 border-white/5 text-slate-300 hover:border-white/15 hover:bg-white/5"
+                        }`}
+                      >
+                        <span className="text-[9px] text-slate-400 font-bold block leading-none">DRAW</span>
+                        <span className="text-[11px] font-mono font-black tracking-tight leading-none mt-1 text-slate-100">
+                          {drawOdds !== null ? `@${drawOdds.toFixed(2)}` : "🔒 SUSP"}
+                        </span>
+                      </button>
 
-                  <button
-                    disabled={isFT || isLive}
-                    onClick={() =>
-                      handleMarketClick(
-                        fixture,
-                        "MATCH_WINNER",
-                        "AWAY",
-                        fixture.odds.awayWin,
-                        `${awayTeam.shortName} to Win`,
-                        "Match Winner"
-                      )
-                    }
-                    className={`py-2 rounded-xl flex flex-col items-center justify-center border transition-all cursor-pointer ${
-                      isFT || isLive
-                        ? "bg-black/30 border-transparent text-slate-600 cursor-not-allowed"
-                        : isSelected(fixture.id, "MATCH_WINNER", "AWAY")
-                        ? "bg-emerald-500/15 border-emerald-500 text-emerald-400 font-bold"
-                        : "bg-black/20 border-white/5 text-slate-300 hover:border-white/15 hover:bg-white/5"
-                    }`}
-                  >
-                    <span className="text-[9px] text-slate-400 font-bold block leading-none">AWAY</span>
-                    <span className="text-[11px] font-mono font-black tracking-tight leading-none mt-1 text-slate-100">
-                      @{fixture.odds.awayWin.toFixed(2)}
-                    </span>
-                  </button>
-                </div>
+                      <button
+                        disabled={isBettingDisabled || awayOdds === null}
+                        onClick={() =>
+                          handleMarketClick(
+                            fixture,
+                            "MATCH_WINNER",
+                            "AWAY",
+                            awayOdds,
+                            `${awayTeam.shortName} to Win`,
+                            "Match Winner"
+                          )
+                        }
+                        className={`py-2 rounded-xl flex flex-col items-center justify-center border transition-all cursor-pointer ${
+                          isBettingDisabled || awayOdds === null
+                            ? "bg-black/30 border-transparent text-slate-600 cursor-not-allowed opacity-50"
+                            : isSelected(fixture.id, "MATCH_WINNER", "AWAY")
+                            ? "bg-emerald-500/15 border-emerald-500 text-emerald-400 font-bold"
+                            : "bg-black/20 border-white/5 text-slate-300 hover:border-white/15 hover:bg-white/5"
+                        }`}
+                      >
+                        <span className="text-[9px] text-slate-400 font-bold block leading-none">AWAY</span>
+                        <span className="text-[11px] font-mono font-black tracking-tight leading-none mt-1 text-slate-100">
+                          {awayOdds !== null ? `@${awayOdds.toFixed(2)}` : "🔒 SUSP"}
+                        </span>
+                      </button>
+                    </div>
+                  );
+                })()}
 
                 {/* Expand sub markets trigger (Odds details draw) */}
                 <div className="bg-white/5 px-3 py-1.5 flex items-center justify-between">
@@ -272,17 +295,26 @@ export const FixturesOdds: React.FC<FixturesOddsProps> = ({
                       🔒 Match Finished • Bets Blocked
                     </span>
                   ) : isLive ? (
-                    <span className="text-[9px] text-red-400 font-mono font-bold uppercase select-none">
-                      🔒 Live Match • Markets Blocked
+                    <span className="text-[9px] text-red-400 font-mono font-bold uppercase select-none flex items-center gap-1 animate-pulse">
+                      ⚡ In-Play Live • Betting Open
+                    </span>
+                  ) : isHalfTimePause ? (
+                    <span className="text-[9px] text-emerald-400 font-mono font-bold uppercase select-none animate-pulse">
+                      ⏳ Half-Time • In-Play Betting Open
                     </span>
                   ) : (
-                    <button
-                      onClick={() => setActiveModalFixtureId(fixture.id)}
-                      className="text-[10px] text-emerald-400 hover:text-emerald-350 font-bold font-sans tracking-wide cursor-pointer flex items-center gap-1"
-                    >
-                      <span>▶️ ALL MARKETS ({Object.keys(fixture.odds).length}+)</span>
-                    </button>
+                    <span className="text-[9px] text-emerald-400 font-mono font-bold uppercase select-none">
+                      ✅ Kickoff Tbl • Wagering Active
+                    </span>
                   )}
+                  
+                  <button
+                    disabled={isBettingDisabled}
+                    onClick={() => setActiveModalFixtureId(fixture.id)}
+                    className="text-[10px] text-emerald-400 hover:text-emerald-350 font-bold font-sans tracking-wide cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
+                  >
+                    <span>▶️ ALL MARKETS ({Object.keys(fixture.odds).length}+)</span>
+                  </button>
                   <span className="text-[9px] text-slate-500 font-mono font-bold select-none cursor-default">
                     ID: {fixture.id}
                   </span>
@@ -349,21 +381,24 @@ export const FixturesOdds: React.FC<FixturesOddsProps> = ({
                   </div>
                   <div className="grid grid-cols-3 gap-2">
                     {[
-                      { id: "HOME", t: activeFixtureHomeTeam.name, o: activeFixture.odds.homeWin, n: `${activeFixtureHomeTeam.shortName} to Win` },
-                      { id: "DRAW", t: "Draw", o: activeFixture.odds.draw, n: `Draw` },
-                      { id: "AWAY", t: activeFixtureAwayTeam.name, o: activeFixture.odds.awayWin, n: `${activeFixtureAwayTeam.shortName} to Win` },
+                      { id: "HOME", t: activeFixtureHomeTeam.name, o: getModalLiveOdds("MATCH_WINNER", "HOME", activeFixture.odds.homeWin), n: `${activeFixtureHomeTeam.shortName} to Win` },
+                      { id: "DRAW", t: "Draw", o: getModalLiveOdds("MATCH_WINNER", "DRAW", activeFixture.odds.draw), n: `Draw` },
+                      { id: "AWAY", t: activeFixtureAwayTeam.name, o: getModalLiveOdds("MATCH_WINNER", "AWAY", activeFixture.odds.awayWin), n: `${activeFixtureAwayTeam.shortName} to Win` },
                     ].map(b => (
                       <button
                         key={b.id}
+                        disabled={b.o === null}
                         onClick={() => handleMarketClick(activeFixture, "MATCH_WINNER", b.id, b.o, b.n, "Match Winner")}
                         className={`py-3 px-3 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between border cursor-pointer transition-all ${
-                          isSelected(activeFixture.id, "MATCH_WINNER", b.id)
-                            ? "bg-emerald-500/15 border-emerald-500 text-emerald-400"
+                          b.o === null
+                            ? "bg-black/40 border-transparent text-slate-600 cursor-not-allowed opacity-50"
+                            : isSelected(activeFixture.id, "MATCH_WINNER", b.id)
+                            ? "bg-emerald-500/15 border-emerald-500 text-emerald-400 font-bold"
                             : "bg-[#18212a] border-white/5 hover:bg-white/5 text-slate-300"
                         }`}
                       >
                         <span className="text-[10px] sm:text-xs font-semibold">{b.t}</span>
-                        <span className="text-xs font-black font-mono">{b.o.toFixed(2)}</span>
+                        <span className="text-xs font-black font-mono">{b.o !== null ? `@${b.o.toFixed(2)}` : "🔒 SUSP"}</span>
                       </button>
                     ))}
                   </div>
@@ -379,21 +414,24 @@ export const FixturesOdds: React.FC<FixturesOddsProps> = ({
                   </div>
                   <div className="grid grid-cols-3 gap-2">
                     {[
-                      { id: "HOME_OR_DRAW", t: "Home/Draw", o: activeFixture.odds.doubleChance.homeOrDraw, n: `Home or Draw` },
-                      { id: "HOME_OR_AWAY", t: "Home/Away", o: activeFixture.odds.doubleChance.homeOrAway, n: `Home or Away` },
-                      { id: "DRAW_OR_AWAY", t: "Draw/Away", o: activeFixture.odds.doubleChance.drawOrAway, n: `Draw or Away` },
+                      { id: "HOME_OR_DRAW", t: "Home/Draw", o: getModalLiveOdds("DOUBLE_CHANCE", "1X", activeFixture.odds.doubleChance.homeOrDraw), n: `Home or Draw` },
+                      { id: "HOME_OR_AWAY", t: "Home/Away", o: getModalLiveOdds("DOUBLE_CHANCE", "12", activeFixture.odds.doubleChance.homeOrAway), n: `Home or Away` },
+                      { id: "DRAW_OR_AWAY", t: "Draw/Away", o: getModalLiveOdds("DOUBLE_CHANCE", "X2", activeFixture.odds.doubleChance.drawOrAway), n: `Draw or Away` },
                     ].map(b => (
                       <button
                         key={b.id}
+                        disabled={b.o === null}
                         onClick={() => handleMarketClick(activeFixture, "DOUBLE_CHANCE", b.id, b.o, b.n, "Double Chance")}
                         className={`py-3 px-3 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between border cursor-pointer transition-all ${
-                          isSelected(activeFixture.id, "DOUBLE_CHANCE", b.id)
-                            ? "bg-emerald-500/15 border-emerald-500 text-emerald-400"
+                          b.o === null
+                            ? "bg-black/40 border-transparent text-slate-600 cursor-not-allowed opacity-50"
+                            : isSelected(activeFixture.id, "DOUBLE_CHANCE", b.id)
+                            ? "bg-emerald-500/15 border-emerald-500 text-emerald-400 font-bold"
                             : "bg-[#18212a] border-white/5 hover:bg-white/5 text-slate-300"
                         }`}
                       >
                         <span className="text-[10px] sm:text-xs font-semibold">{b.t}</span>
-                        <span className="text-xs font-black font-mono">{b.o.toFixed(2)}</span>
+                        <span className="text-xs font-black font-mono">{b.o !== null ? `@${b.o.toFixed(2)}` : "🔒 SUSP"}</span>
                       </button>
                     ))}
                   </div>
@@ -413,29 +451,37 @@ export const FixturesOdds: React.FC<FixturesOddsProps> = ({
                         {["0.5", "1.5", "2.5", "3.5", "4.5"].map((line) => {
                           const ou = activeFixture.odds.overUnder as any;
                           const tLine = line.replace(".", "_");
+                          const liveOverOdds = getModalLiveOdds("OVER_UNDER_GOALS", `OVER_${tLine}`, ou[`over${tLine}`]);
+                          const liveUnderOdds = getModalLiveOdds("OVER_UNDER_GOALS", `UNDER_${tLine}`, ou[`under${tLine}`]);
                           return (
                             <div key={line} className="grid grid-cols-2 gap-2">
                               <button
-                                onClick={() => handleMarketClick(activeFixture, "OVER_UNDER_GOALS", `OVER_${tLine}`, ou[`over${tLine}`], `Over ${line} Goals`, `Over/Under`)}
+                                disabled={liveOverOdds === null}
+                                onClick={() => handleMarketClick(activeFixture, "OVER_UNDER_GOALS", `OVER_${tLine}`, liveOverOdds, `Over ${line} Goals`, `Over/Under`)}
                                 className={`py-3 px-4 rounded-lg flex items-center justify-between border cursor-pointer transition-all ${
-                                  isSelected(activeFixture.id, "OVER_UNDER_GOALS", `OVER_${tLine}`)
-                                    ? "bg-emerald-500/15 border-emerald-500 text-emerald-400"
+                                  liveOverOdds === null
+                                    ? "bg-black/40 border-transparent text-slate-600 cursor-not-allowed opacity-50"
+                                    : isSelected(activeFixture.id, "OVER_UNDER_GOALS", `OVER_${tLine}`)
+                                    ? "bg-emerald-500/15 border-emerald-500 text-emerald-400 font-bold"
                                     : "bg-[#18212a] border-white/5 hover:bg-white/5 text-slate-300"
                                 }`}
                               >
                                 <span className="text-[10px] sm:text-xs font-semibold">Over {line}</span>
-                                <span className="text-xs font-black font-mono">{ou[`over${tLine}`]?.toFixed(2)}</span>
+                                <span className="text-xs font-black font-mono">{liveOverOdds !== null ? `@${liveOverOdds.toFixed(2)}` : "🔒 SUSP"}</span>
                               </button>
                               <button
-                                onClick={() => handleMarketClick(activeFixture, "OVER_UNDER_GOALS", `UNDER_${tLine}`, ou[`under${tLine}`], `Under ${line} Goals`, `Over/Under`)}
+                                disabled={liveUnderOdds === null}
+                                onClick={() => handleMarketClick(activeFixture, "OVER_UNDER_GOALS", `UNDER_${tLine}`, liveUnderOdds, `Under ${line} Goals`, `Over/Under`)}
                                 className={`py-3 px-4 rounded-lg flex items-center justify-between border cursor-pointer transition-all ${
-                                  isSelected(activeFixture.id, "OVER_UNDER_GOALS", `UNDER_${tLine}`)
-                                    ? "bg-emerald-500/15 border-emerald-500 text-emerald-400"
+                                  liveUnderOdds === null
+                                    ? "bg-black/40 border-transparent text-slate-600 cursor-not-allowed opacity-50"
+                                    : isSelected(activeFixture.id, "OVER_UNDER_GOALS", `UNDER_${tLine}`)
+                                    ? "bg-emerald-500/15 border-emerald-500 text-emerald-400 font-bold"
                                     : "bg-[#18212a] border-white/5 hover:bg-white/5 text-slate-300"
                                 }`}
                               >
                                 <span className="text-[10px] sm:text-xs font-semibold">Under {line}</span>
-                                <span className="text-xs font-black font-mono">{ou[`under${tLine}`]?.toFixed(2)}</span>
+                                <span className="text-xs font-black font-mono">{liveUnderOdds !== null ? `@${liveUnderOdds.toFixed(2)}` : "🔒 SUSP"}</span>
                               </button>
                             </div>
                           );
@@ -444,31 +490,45 @@ export const FixturesOdds: React.FC<FixturesOddsProps> = ({
                     )}
                   </div>
                   
-                  {activeFixture.odds.bothTeamsToScore && (
+                  {activeFixture.odds?.bothTeamsToScore && (
                     <div className="space-y-2">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-xs text-slate-200 font-bold">Both Teams to Score (GG/NG)</span>
                         <InfoButton text="Will both teams score at least 1 goal?" />
                       </div>
                       <div className="grid grid-cols-2 gap-2">
-                        <button
-                          onClick={() => handleMarketClick(activeFixture, "BOTH_TEAMS_TO_SCORE", "YES", activeFixture.odds.bothTeamsToScore!.yes, `BTTS: Yes`, "BTTS")}
-                          className={`py-3 px-4 rounded-lg flex items-center justify-between border cursor-pointer transition-all ${
-                            isSelected(activeFixture.id, "BOTH_TEAMS_TO_SCORE", "YES") ? "bg-emerald-500/15 border-emerald-500 text-emerald-400" : "bg-[#18212a] border-white/5 hover:bg-white/5 text-slate-300"
-                          }`}
-                        >
-                          <span className="text-[10px] sm:text-xs font-semibold">Yes (GG)</span>
-                          <span className="text-xs font-black font-mono">{activeFixture.odds.bothTeamsToScore.yes.toFixed(2)}</span>
-                        </button>
-                        <button
-                          onClick={() => handleMarketClick(activeFixture, "BOTH_TEAMS_TO_SCORE", "NO", activeFixture.odds.bothTeamsToScore!.no, `BTTS: No`, "BTTS")}
-                          className={`py-3 px-4 rounded-lg flex items-center justify-between border cursor-pointer transition-all ${
-                            isSelected(activeFixture.id, "BOTH_TEAMS_TO_SCORE", "NO") ? "bg-emerald-500/15 border-emerald-500 text-emerald-400" : "bg-[#18212a] border-white/5 hover:bg-white/5 text-slate-300"
-                          }`}
-                        >
-                          <span className="text-[10px] sm:text-xs font-semibold">No (NG)</span>
-                          <span className="text-xs font-black font-mono">{activeFixture.odds.bothTeamsToScore.no.toFixed(2)}</span>
-                        </button>
+                        {(() => {
+                          const liveBttsYes = getModalLiveOdds("BOTH_TEAMS_TO_SCORE", "YES", activeFixture.odds!.bothTeamsToScore!.yes);
+                          const liveBttsNo = getModalLiveOdds("BOTH_TEAMS_TO_SCORE", "NO", activeFixture.odds!.bothTeamsToScore!.no);
+                          return (
+                            <>
+                              <button
+                                disabled={liveBttsYes === null}
+                                onClick={() => handleMarketClick(activeFixture, "BOTH_TEAMS_TO_SCORE", "YES", liveBttsYes, `BTTS: Yes`, "BTTS")}
+                                className={`py-3 px-4 rounded-lg flex items-center justify-between border cursor-pointer transition-all ${
+                                  liveBttsYes === null
+                                    ? "bg-black/40 border-transparent text-slate-600 cursor-not-allowed opacity-50"
+                                    : isSelected(activeFixture.id, "BOTH_TEAMS_TO_SCORE", "YES") ? "bg-emerald-500/15 border-emerald-500 text-emerald-400 font-bold" : "bg-[#18212a] border-white/5 hover:bg-white/5 text-slate-300"
+                                }`}
+                              >
+                                <span className="text-[10px] sm:text-xs font-semibold">Yes (GG)</span>
+                                <span className="text-xs font-black font-mono">{liveBttsYes !== null ? `@${liveBttsYes.toFixed(2)}` : "🔒 SUSP"}</span>
+                              </button>
+                              <button
+                                disabled={liveBttsNo === null}
+                                onClick={() => handleMarketClick(activeFixture, "BOTH_TEAMS_TO_SCORE", "NO", liveBttsNo, `BTTS: No`, "BTTS")}
+                                className={`py-3 px-4 rounded-lg flex items-center justify-between border cursor-pointer transition-all ${
+                                  liveBttsNo === null
+                                    ? "bg-black/40 border-transparent text-slate-600 cursor-not-allowed opacity-50"
+                                    : isSelected(activeFixture.id, "BOTH_TEAMS_TO_SCORE", "NO") ? "bg-emerald-500/15 border-emerald-500 text-emerald-400 font-bold" : "bg-[#18212a] border-white/5 hover:bg-white/5 text-slate-300"
+                                }`}
+                              >
+                                <span className="text-[10px] sm:text-xs font-semibold">No (NG)</span>
+                                <span className="text-xs font-black font-mono">{liveBttsNo !== null ? `@${liveBttsNo.toFixed(2)}` : "🔒 SUSP"}</span>
+                              </button>
+                            </>
+                          );
+                        })()}
                       </div>
                     </div>
                   )}
@@ -481,16 +541,20 @@ export const FixturesOdds: React.FC<FixturesOddsProps> = ({
                     <div className="grid grid-cols-3 gap-1.5">
                       {activeFixture.odds.exactScores.map(sc => {
                         const isSel = isSelected(activeFixture.id, "EXACT_SCORE", sc.score);
+                        const liveScoOdds = getModalLiveOdds("EXACT_SCORE", sc.score, sc.odds);
                         return (
                           <button
                             key={sc.score}
-                            onClick={() => handleMarketClick(activeFixture, "EXACT_SCORE", sc.score, sc.odds, `Score: ${sc.score}`, "Correct Score")}
+                            disabled={liveScoOdds === null}
+                            onClick={() => handleMarketClick(activeFixture, "EXACT_SCORE", sc.score, liveScoOdds, `Score: ${sc.score}`, "Correct Score")}
                             className={`py-2 px-2 rounded-lg text-center border cursor-pointer font-mono whitespace-nowrap transition-all flex flex-col items-center ${
-                              isSel ? "bg-emerald-500/15 border-emerald-500 text-emerald-400" : "bg-[#18212a] border-white/5 hover:bg-white/5 text-slate-300"
+                              liveScoOdds === null
+                                ? "bg-black/40 border-transparent text-slate-600 cursor-not-allowed opacity-50"
+                                : isSel ? "bg-emerald-500/15 border-emerald-500 text-emerald-400" : "bg-[#18212a] border-white/5 hover:bg-white/5 text-slate-300"
                             }`}
                           >
                             <span className="text-[10px] sm:text-xs font-bold">{sc.score}</span>
-                            <span className="text-[10px] font-black tracking-tight">{sc.odds.toFixed(2)}</span>
+                            <span className="text-[10px] font-black tracking-tight">{liveScoOdds !== null ? `@${liveScoOdds.toFixed(2)}` : "🔒 SUSP"}</span>
                           </button>
                         );
                       })}
@@ -507,111 +571,162 @@ export const FixturesOdds: React.FC<FixturesOddsProps> = ({
                     <InfoButton text="Predict a player to score at any time during the match." />
                   </div>
                   <div className="grid grid-cols-1 gap-1">
-                    {activeFixture.odds.goalscorers.map(gs => (
-                      <button
-                        key={gs.playerId}
-                        onClick={() => handleMarketClick(activeFixture, "ANYTIME_GOALSCORER", gs.playerId, gs.odds, `${gs.name} to Score`, "Goalscorer")}
-                        className={`py-2 px-3 rounded-lg flex items-center justify-between border cursor-pointer transition-all ${
-                          isSelected(activeFixture.id, "ANYTIME_GOALSCORER", gs.playerId) ? "bg-emerald-500/15 border-emerald-500 text-emerald-400" : "bg-[#18212a] border-white/5 hover:bg-white/5 text-slate-300"
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-semibold">{gs.name}</span>
-                          <span className="text-[9px] text-slate-500 font-mono">{gs.position}</span>
-                        </div>
-                        <span className="text-xs font-black font-mono">{gs.odds.toFixed(2)}</span>
-                      </button>
-                    ))}
+                    {activeFixture.odds.goalscorers.map(gs => {
+                      const liveGsOdds = getModalLiveOdds("ANYTIME_GOALSCORER", gs.playerId, gs.odds);
+                      return (
+                        <button
+                          key={gs.playerId}
+                          disabled={liveGsOdds === null}
+                          onClick={() => handleMarketClick(activeFixture, "ANYTIME_GOALSCORER", gs.playerId, liveGsOdds, `${gs.name} to Score`, "Goalscorer")}
+                          className={`py-2 px-3 rounded-lg flex items-center justify-between border cursor-pointer transition-all ${
+                            liveGsOdds === null
+                              ? "bg-black/40 border-transparent text-slate-600 cursor-not-allowed opacity-50"
+                              : isSelected(activeFixture.id, "ANYTIME_GOALSCORER", gs.playerId) ? "bg-emerald-500/15 border-emerald-500 text-emerald-400 font-bold" : "bg-[#18212a] border-white/5 hover:bg-white/5 text-slate-300"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-semibold">{gs.name}</span>
+                            <span className="text-[9px] text-slate-500 font-mono">{gs.position}</span>
+                          </div>
+                          <span className="text-xs font-black font-mono">{liveGsOdds !== null ? `@${liveGsOdds.toFixed(2)}` : "🔒 SUSP"}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
 
               {/* Corners */}
-              {activeFixture.odds.overUnderCorners && (activeModalTab === "ALL" || activeModalTab === "CORNERS") && (
+              {activeFixture.odds.overUnderCorners && activeFixture.odds.overUnderCorners.length > 0 && (activeModalTab === "ALL" || activeModalTab === "CORNERS") && (
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-xs text-slate-200 font-bold">Total Corners</span>
                     <InfoButton text="Will the match have over or under the total number of corners?" />
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => handleMarketClick(activeFixture, "OVER_UNDER_CORNERS", "OVER", activeFixture.odds.overUnderCorners!.over, `Over ${activeFixture.odds.overUnderCorners!.line} Corners`, "Corners")}
-                      className={`py-3 px-4 rounded-lg flex items-center justify-between border cursor-pointer transition-all ${
-                        isSelected(activeFixture.id, "OVER_UNDER_CORNERS", "OVER") ? "bg-emerald-500/15 border-emerald-500 text-emerald-400" : "bg-[#18212a] border-white/5 hover:bg-white/5 text-slate-300"
-                      }`}
-                    >
-                      <span className="text-xs font-semibold">Over {activeFixture.odds.overUnderCorners.line}</span>
-                      <span className="text-xs font-black font-mono">{activeFixture.odds.overUnderCorners.over.toFixed(2)}</span>
-                    </button>
-                    <button
-                      onClick={() => handleMarketClick(activeFixture, "OVER_UNDER_CORNERS", "UNDER", activeFixture.odds.overUnderCorners!.under, `Under ${activeFixture.odds.overUnderCorners!.line} Corners`, "Corners")}
-                      className={`py-3 px-4 rounded-lg flex items-center justify-between border cursor-pointer transition-all ${
-                        isSelected(activeFixture.id, "OVER_UNDER_CORNERS", "UNDER") ? "bg-emerald-500/15 border-emerald-500 text-emerald-400" : "bg-[#18212a] border-white/5 hover:bg-white/5 text-slate-300"
-                      }`}
-                    >
-                      <span className="text-xs font-semibold">Under {activeFixture.odds.overUnderCorners.line}</span>
-                      <span className="text-xs font-black font-mono">{activeFixture.odds.overUnderCorners.under.toFixed(2)}</span>
-                    </button>
+                  <div className="flex flex-col gap-2 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
+                    {activeFixture.odds.overUnderCorners.map((ou) => {
+                      const liveOver = getModalLiveOdds("OVER_UNDER_CORNERS", `OVER_${ou.line}`, ou.over);
+                      const liveUnder = getModalLiveOdds("OVER_UNDER_CORNERS", `UNDER_${ou.line}`, ou.under);
+                      return (
+                        <div key={`corners-${ou.line}`} className="grid grid-cols-[auto_1fr_1fr] gap-2 items-center">
+                          <span className="text-xs font-bold text-slate-400 w-8">{ou.line}</span>
+                          <button
+                            disabled={liveOver === null}
+                            onClick={() => handleMarketClick(activeFixture, "OVER_UNDER_CORNERS", `OVER_${ou.line}`, liveOver, `Over ${ou.line} Corners`, "Corners")}
+                            className={`py-2 px-3 rounded-lg flex items-center justify-between border cursor-pointer transition-all ${
+                              liveOver === null
+                                ? "bg-black/40 border-transparent text-slate-600 cursor-not-allowed opacity-50"
+                                : isSelected(activeFixture.id, "OVER_UNDER_CORNERS", `OVER_${ou.line}`) ? "bg-emerald-500/15 border-emerald-500 text-emerald-400" : "bg-[#18212a] border-white/5 hover:bg-white/5 text-slate-300"
+                            }`}
+                          >
+                            <span className="text-[10px] font-semibold">Over</span>
+                            <span className="text-[10px] font-black font-mono">{liveOver !== null ? `@${liveOver.toFixed(2)}` : "🔒 SUSP"}</span>
+                          </button>
+                          <button
+                            disabled={liveUnder === null}
+                            onClick={() => handleMarketClick(activeFixture, "OVER_UNDER_CORNERS", `UNDER_${ou.line}`, liveUnder, `Under ${ou.line} Corners`, "Corners")}
+                            className={`py-2 px-3 rounded-lg flex items-center justify-between border cursor-pointer transition-all ${
+                              liveUnder === null
+                                ? "bg-black/40 border-transparent text-slate-600 cursor-not-allowed opacity-50"
+                                : isSelected(activeFixture.id, "OVER_UNDER_CORNERS", `UNDER_${ou.line}`) ? "bg-emerald-500/15 border-emerald-500 text-emerald-400" : "bg-[#18212a] border-white/5 hover:bg-white/5 text-slate-300"
+                            }`}
+                          >
+                            <span className="text-[10px] font-semibold">Under</span>
+                            <span className="text-[10px] font-black font-mono">{liveUnder !== null ? `@${liveUnder.toFixed(2)}` : "🔒 SUSP"}</span>
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
 
               {/* Cards */}
-              {activeFixture.odds.overUnderCards && (activeModalTab === "ALL" || activeModalTab === "CARDS") && (
+              {activeFixture.odds.overUnderCards && activeFixture.odds.overUnderCards.length > 0 && (activeModalTab === "ALL" || activeModalTab === "CARDS") && (
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-xs text-slate-200 font-bold">Total Cards Issued</span>
                     <InfoButton text="Will the ref issue over or under the total number of cards?" />
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => handleMarketClick(activeFixture, "OVER_UNDER_CARDS", "OVER", activeFixture.odds.overUnderCards!.over, `Over ${activeFixture.odds.overUnderCards!.line} Cards`, "Cards")}
-                      className={`py-3 px-4 rounded-lg flex items-center justify-between border cursor-pointer transition-all ${
-                        isSelected(activeFixture.id, "OVER_UNDER_CARDS", "OVER") ? "bg-emerald-500/15 border-emerald-500 text-emerald-400" : "bg-[#18212a] border-white/5 hover:bg-white/5 text-slate-300"
-                      }`}
-                    >
-                      <span className="text-xs font-semibold">Over {activeFixture.odds.overUnderCards.line}</span>
-                      <span className="text-xs font-black font-mono">{activeFixture.odds.overUnderCards.over.toFixed(2)}</span>
-                    </button>
-                    <button
-                      onClick={() => handleMarketClick(activeFixture, "OVER_UNDER_CARDS", "UNDER", activeFixture.odds.overUnderCards!.under, `Under ${activeFixture.odds.overUnderCards!.line} Cards`, "Cards")}
-                      className={`py-3 px-4 rounded-lg flex items-center justify-between border cursor-pointer transition-all ${
-                        isSelected(activeFixture.id, "OVER_UNDER_CARDS", "UNDER") ? "bg-emerald-500/15 border-emerald-500 text-emerald-400" : "bg-[#18212a] border-white/5 hover:bg-white/5 text-slate-300"
-                      }`}
-                    >
-                      <span className="text-xs font-semibold">Under {activeFixture.odds.overUnderCards.line}</span>
-                      <span className="text-xs font-black font-mono">{activeFixture.odds.overUnderCards.under.toFixed(2)}</span>
-                    </button>
+                  <div className="flex flex-col gap-2 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
+                    {activeFixture.odds.overUnderCards.map((ou) => {
+                      const liveOver = getModalLiveOdds("OVER_UNDER_CARDS", `OVER_${ou.line}`, ou.over);
+                      const liveUnder = getModalLiveOdds("OVER_UNDER_CARDS", `UNDER_${ou.line}`, ou.under);
+                      return (
+                        <div key={`cards-${ou.line}`} className="grid grid-cols-[auto_1fr_1fr] gap-2 items-center">
+                          <span className="text-xs font-bold text-slate-400 w-8">{ou.line}</span>
+                          <button
+                            disabled={liveOver === null}
+                            onClick={() => handleMarketClick(activeFixture, "OVER_UNDER_CARDS", `OVER_${ou.line}`, liveOver, `Over ${ou.line} Cards`, "Cards")}
+                            className={`py-2 px-3 rounded-lg flex items-center justify-between border cursor-pointer transition-all ${
+                              liveOver === null
+                                ? "bg-black/40 border-transparent text-slate-600 cursor-not-allowed opacity-50"
+                                : isSelected(activeFixture.id, "OVER_UNDER_CARDS", `OVER_${ou.line}`) ? "bg-emerald-500/15 border-emerald-500 text-emerald-400" : "bg-[#18212a] border-white/5 hover:bg-white/5 text-slate-300"
+                            }`}
+                          >
+                            <span className="text-[10px] font-semibold">Over</span>
+                            <span className="text-[10px] font-black font-mono">{liveOver !== null ? `@${liveOver.toFixed(2)}` : "🔒 SUSP"}</span>
+                          </button>
+                          <button
+                            disabled={liveUnder === null}
+                            onClick={() => handleMarketClick(activeFixture, "OVER_UNDER_CARDS", `UNDER_${ou.line}`, liveUnder, `Under ${ou.line} Cards`, "Cards")}
+                            className={`py-2 px-3 rounded-lg flex items-center justify-between border cursor-pointer transition-all ${
+                              liveUnder === null
+                                ? "bg-black/40 border-transparent text-slate-600 cursor-not-allowed opacity-50"
+                                : isSelected(activeFixture.id, "OVER_UNDER_CARDS", `UNDER_${ou.line}`) ? "bg-emerald-500/15 border-emerald-500 text-emerald-400" : "bg-[#18212a] border-white/5 hover:bg-white/5 text-slate-300"
+                            }`}
+                          >
+                            <span className="text-[10px] font-semibold">Under</span>
+                            <span className="text-[10px] font-black font-mono">{liveUnder !== null ? `@${liveUnder.toFixed(2)}` : "🔒 SUSP"}</span>
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
               
               {/* Goalkeeper Saves */}
-              {activeFixture.odds.overUnderSaves && (activeModalTab === "ALL" || activeModalTab === "MAIN") && (
+              {activeFixture.odds.overUnderSaves && activeFixture.odds.overUnderSaves.length > 0 && (activeModalTab === "ALL" || activeModalTab === "MAIN") && (
                  <div className="space-y-2">
                    <div className="flex items-center gap-2 mb-1">
                      <span className="text-xs text-slate-200 font-bold">Total Scrapes & Saves</span>
                      <InfoButton text="Will both Goalkeepers make more combined saves than this number?" />
                    </div>
-                   <div className="grid grid-cols-2 gap-2">
-                     <button
-                       onClick={() => handleMarketClick(activeFixture, "OVER_UNDER_SAVES", "OVER", activeFixture.odds.overUnderSaves!.over, `Over ${activeFixture.odds.overUnderSaves!.line} Saves`, "Saves")}
-                       className={`py-3 px-4 rounded-lg flex items-center justify-between border cursor-pointer transition-all ${
-                         isSelected(activeFixture.id, "OVER_UNDER_SAVES", "OVER") ? "bg-emerald-500/15 border-emerald-500 text-emerald-400" : "bg-[#18212a] border-white/5 hover:bg-white/5 text-slate-300"
-                       }`}
-                     >
-                       <span className="text-xs font-semibold">Over {activeFixture.odds.overUnderSaves.line}</span>
-                       <span className="text-xs font-black font-mono">{activeFixture.odds.overUnderSaves.over.toFixed(2)}</span>
-                     </button>
-                     <button
-                       onClick={() => handleMarketClick(activeFixture, "OVER_UNDER_SAVES", "UNDER", activeFixture.odds.overUnderSaves!.under, `Under ${activeFixture.odds.overUnderSaves!.line} Saves`, "Saves")}
-                       className={`py-3 px-4 rounded-lg flex items-center justify-between border cursor-pointer transition-all ${
-                         isSelected(activeFixture.id, "OVER_UNDER_SAVES", "UNDER") ? "bg-emerald-500/15 border-emerald-500 text-emerald-400" : "bg-[#18212a] border-white/5 hover:bg-white/5 text-slate-300"
-                       }`}
-                     >
-                       <span className="text-xs font-semibold">Under {activeFixture.odds.overUnderSaves.line}</span>
-                       <span className="text-xs font-black font-mono">{activeFixture.odds.overUnderSaves.under.toFixed(2)}</span>
-                     </button>
+                   <div className="flex flex-col gap-2 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
+                     {activeFixture.odds.overUnderSaves.map((ou) => {
+                       const liveOver = getModalLiveOdds("OVER_UNDER_SAVES", `OVER_${ou.line}`, ou.over);
+                       const liveUnder = getModalLiveOdds("OVER_UNDER_SAVES", `UNDER_${ou.line}`, ou.under);
+                       return (
+                         <div key={`saves-${ou.line}`} className="grid grid-cols-[auto_1fr_1fr] gap-2 items-center">
+                           <span className="text-xs font-bold text-slate-400 w-8">{ou.line}</span>
+                           <button
+                             disabled={liveOver === null}
+                             onClick={() => handleMarketClick(activeFixture, "OVER_UNDER_SAVES", `OVER_${ou.line}`, liveOver, `Over ${ou.line} Saves`, "Saves")}
+                             className={`py-2 px-3 rounded-lg flex items-center justify-between border cursor-pointer transition-all ${
+                               liveOver === null
+                                 ? "bg-black/40 border-transparent text-slate-600 cursor-not-allowed opacity-50"
+                                 : isSelected(activeFixture.id, "OVER_UNDER_SAVES", `OVER_${ou.line}`) ? "bg-emerald-500/15 border-emerald-500 text-emerald-400" : "bg-[#18212a] border-white/5 hover:bg-white/5 text-slate-300"
+                             }`}
+                           >
+                             <span className="text-[10px] font-semibold">Over</span>
+                             <span className="text-[10px] font-black font-mono">{liveOver !== null ? `@${liveOver.toFixed(2)}` : "🔒 SUSP"}</span>
+                           </button>
+                           <button
+                             disabled={liveUnder === null}
+                             onClick={() => handleMarketClick(activeFixture, "OVER_UNDER_SAVES", `UNDER_${ou.line}`, liveUnder, `Under ${ou.line} Saves`, "Saves")}
+                             className={`py-2 px-3 rounded-lg flex items-center justify-between border cursor-pointer transition-all ${
+                               liveUnder === null
+                                 ? "bg-black/40 border-transparent text-slate-600 cursor-not-allowed opacity-50"
+                                 : isSelected(activeFixture.id, "OVER_UNDER_SAVES", `UNDER_${ou.line}`) ? "bg-emerald-500/15 border-emerald-500 text-emerald-400" : "bg-[#18212a] border-white/5 hover:bg-white/5 text-slate-300"
+                             }`}
+                           >
+                             <span className="text-[10px] font-semibold">Under</span>
+                             <span className="text-[10px] font-black font-mono">{liveUnder !== null ? `@${liveUnder.toFixed(2)}` : "🔒 SUSP"}</span>
+                           </button>
+                         </div>
+                       );
+                     })}
                    </div>
                  </div>
               )}

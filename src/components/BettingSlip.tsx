@@ -244,11 +244,11 @@ export const BettingSlip: React.FC<BettingSlipProps> = ({
 
   if (collapsed) {
     return (
-      <div className="fixed bottom-20 md:absolute md:-right-8 md:top-1/2 md:-translate-y-1/2 md:-rotate-90 right-4 flex items-center gap-2 z-50">
+      <div className="fixed bottom-20 md:absolute md:-right-8 md:top-1/2 md:-translate-y-1/2 md:-rotate-90 right-4 flex items-center gap-2 z-50 pointer-events-none">
         <button
           id="betting-slip-toggle"
           onClick={() => setCollapsed(false)}
-          className={`flex items-center shadow-emerald-500/20 font-black shrink-0 transition-all cursor-pointer bg-emerald-500 hover:bg-emerald-600 text-slate-950 border border-emerald-400 ${selections.length > 0 ? "h-12 w-auto px-4 rounded-full gap-3 shadow-lg" : "h-12 w-12 rounded-full justify-center shadow-lg"}`}
+          className={`pointer-events-auto flex items-center shadow-emerald-500/20 font-black shrink-0 transition-all cursor-pointer bg-emerald-500 hover:bg-emerald-600 text-slate-950 border border-emerald-400 ${selections.length > 0 ? "h-12 w-auto px-4 rounded-full gap-3 shadow-lg" : "h-12 w-12 rounded-full justify-center shadow-lg"}`}
           title="Open Betting Slip"
         >
           <span>🎫</span>

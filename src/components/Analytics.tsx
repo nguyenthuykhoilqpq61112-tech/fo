@@ -1,13 +1,16 @@
-import React, { useState } from "react";
-import { Team, Player } from "../types";
+import React, { useState, useMemo } from "react";
+import { Team, Player, Profile } from "../types";
 import { TeamCrest } from "./TeamCrest";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Area, AreaChart } from "recharts";
 
 interface AnalyticsProps {
   teams: Team[];
   fixtures: any[]; // all fixtures generated so far
+  userProfile?: Profile;
 }
 
-export const Analytics: React.FC<AnalyticsProps> = ({ teams, fixtures }) => {
+export const Analytics: React.FC<AnalyticsProps> = ({ teams, fixtures, userProfile }) => {
+  const [primaryTab, setPrimaryTab] = useState<"sports" | "finance">("finance");
   const [activeStatTab, setActiveStatTab] = useState<"goals" | "assists" | "saves" | "discipline">("goals");
 
   const triggerGlobalEntity = (type: "team" | "player", id: string) => {
@@ -131,9 +134,113 @@ export const Analytics: React.FC<AnalyticsProps> = ({ teams, fixtures }) => {
     );
   };
 
+  // --- FINANCE & BETTING DNA CALCULATIONS ---
+  const financeData = useMemo(() => {
+    if (!userProfile) return null;
+    
+    // Bankroll Chart Data (with fallback if history is empty)
+    const history = userProfile.bankrollHistory || [];
+    let chartData = history.map((h, idx) => ({
+      name: idx,
+      time: new Date(h.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      balance: h.balance
+    }));
+    
+    // If few points, add implicit starting balance
+    if (chartData.length < 2) {
+      chartData = [
+         { name: 0, time: 'Start', balance: 1000 },
+         ...chartData,
+         { name: chartData.length + 1, time: 'Now', balance: userProfile.balance }
+      ];
+    }
+    
+    // Win Rate and Biggest Win
+    const completedTickets = userProfile.tickets.filter(t => t.status === "WON" || t.status === "LOST" || t.status === "CASHED_OUT");
+    const wonTickets = userProfile.tickets.filter(t => t.status === "WON" || t.status === "CASHED_OUT");
+    const winRate = completedTickets.length > 0 ? ((wonTickets.length / completedTickets.length) * 100).toFixed(1) : "0.0";
+    
+    let biggestWin = 0;
+    wonTickets.forEach(t => {
+      const profit = (t.status === "CASHED_OUT" ? (t.cashedOutAmount || 0) : t.potentialPayout) - t.stake;
+      if (profit > biggestWin) biggestWin = profit;
+    });
+
+    // Best Market Analysis
+    const marketProfits: Record<string, number> = {};
+    completedTickets.forEach(t => {
+       t.selections.forEach(sel => {
+           if (!marketProfits[sel.marketType]) marketProfits[sel.marketType] = 0;
+           const isCashed = t.status === "CASHED_OUT";
+           const isWon = t.status === "WON";
+           const fraction = 1 / t.selections.length; 
+           let profitContrif = 0;
+           if (isWon) profitContrif = (t.potentialPayout - t.stake) * fraction;
+           else if (isCashed) profitContrif = ((t.cashedOutAmount || 0) - t.stake) * fraction;
+           else if (t.status === "LOST") profitContrif = -t.stake * fraction;
+           
+           marketProfits[sel.marketType] += profitContrif;
+       });
+    });
+
+    let bestMarket = "N/A";
+    let bestMarketProfit = -Infinity;
+    let totalWinsProfits = 0;
+
+    Object.entries(marketProfits).forEach(([mkt, prof]) => {
+      if (prof > 0) totalWinsProfits += prof;
+      if (prof > bestMarketProfit) {
+         bestMarketProfit = prof;
+         bestMarket = mkt;
+      }
+    });
+
+    const bestMarketPct = totalWinsProfits > 0 && bestMarketProfit > 0 ? ((bestMarketProfit / totalWinsProfits) * 100).toFixed(0) : "0";
+    
+    const marketLabelMap: Record<string, string> = {
+      MATCH_WINNER: "Match Winner",
+      EXACT_SCORE: "Exact Score",
+      OVER_UNDER_GOALS: "Over/Under Goals",
+      OVER_UNDER_CORNERS: "Over/Under Corners",
+      BOTH_TEAMS_TO_SCORE: "BTTS",
+      ANYTIME_GOALSCORER: "Goalscorer"
+    };
+
+    return {
+      chartData,
+      winRate,
+      completedCount: completedTickets.length,
+      biggestWin,
+      bestMarket: marketLabelMap[bestMarket] || bestMarket.replace(/_/g, ' '),
+      bestMarketPct
+    };
+  }, [userProfile]);
+
   return (
     <div className="flex-1 min-height-0 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6 no-scrollbar max-h-none">
       
+      {/* Tab Switcher for Primary Content */}
+      <div className="flex bg-white/5 border border-white/10 rounded-xl p-1 mb-6 max-w-sm">
+        <button
+          onClick={() => setPrimaryTab("finance")}
+          className={`flex-1 py-1.5 text-xs font-bold font-mono uppercase tracking-wider rounded-lg transition-all ${
+            primaryTab === "finance" ? "bg-white/10 text-emerald-400 shadow" : "text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          My Finance
+        </button>
+        <button
+          onClick={() => setPrimaryTab("sports")}
+          className={`flex-1 py-1.5 text-xs font-bold font-mono uppercase tracking-wider rounded-lg transition-all ${
+            primaryTab === "sports" ? "bg-white/10 text-emerald-400 shadow" : "text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          Sports Stats
+        </button>
+      </div>
+
+      {primaryTab === "sports" ? (
+      <>
       {/* Title */}
       <div className="border-b border-white/5 pb-3">
         <span className="text-[10px] text-emerald-400 font-mono tracking-widest block uppercase font-bold">
@@ -141,6 +248,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({ teams, fixtures }) => {
         </span>
         <h2 className="text-sm font-bold text-slate-100 font-sans tracking-tight mt-1">
           Player Leaderboards & Team Performance Metrics
+
         </h2>
       </div>
 
@@ -549,6 +657,82 @@ export const Analytics: React.FC<AnalyticsProps> = ({ teams, fixtures }) => {
           </div>
         </div>
       </div>
+      </>
+      ) : (
+      /* FINANCE & BETTING DNA TAB */
+      <div className="space-y-6 animate-fade-in">
+        <div className="border-b border-white/5 pb-3">
+          <span className="text-[10px] text-emerald-400 font-mono tracking-widest block uppercase font-bold">
+            BANKROLL ANALYTICS
+          </span>
+          <h2 className="text-sm font-bold text-slate-100 font-sans tracking-tight mt-1">
+            Profit Visualizer & Betting DNA
+          </h2>
+        </div>
+
+        {/* DNA Overview Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="glass-card border border-white/5 rounded-2xl p-4 flex flex-col justify-between text-center select-none">
+            <span className="text-[9px] text-slate-400 font-bold uppercase font-sans">WIN RATE</span>
+            <span className="text-xl font-black font-mono text-emerald-400 mt-1">
+              {financeData?.winRate}%
+            </span>
+            <p className="text-[8px] text-slate-500 font-mono mt-1 uppercase">
+              {financeData?.completedCount} COMPLETED TICKETS
+            </p>
+          </div>
+          <div className="glass-card border border-white/5 rounded-2xl p-4 flex flex-col justify-between text-center select-none">
+            <span className="text-[9px] text-slate-400 font-bold uppercase font-sans">BIGGEST WIN</span>
+            <span className="text-xl font-black font-mono text-amber-400 mt-1">
+              ${financeData?.biggestWin.toFixed(2)}
+            </span>
+            <p className="text-[8px] text-amber-500/60 font-mono mt-1 uppercase">
+              PURE PROFIT
+            </p>
+          </div>
+          <div className="glass-card border border-white/5 rounded-2xl p-4 flex flex-col justify-between text-center select-none col-span-2">
+            <span className="text-[9px] text-slate-400 font-bold uppercase font-sans">MOST PROFITABLE MARKET</span>
+            <span className="text-xl font-black font-sans text-sky-400 mt-1 uppercase tracking-tight">
+              {financeData?.bestMarket}
+            </span>
+            <p className="text-[8px] text-sky-500/60 font-mono mt-1 uppercase">
+              MAKES UP {financeData?.bestMarketPct}% OF YOUR WINNINGS
+            </p>
+          </div>
+        </div>
+
+        {/* Bankroll Chart */}
+        <div className="glass-panel-heavy border border-white/10 rounded-2xl p-6 relative">
+          <div className="absolute top-4 left-6 z-10 pointer-events-none select-none">
+             <h3 className="text-xs font-bold text-slate-300 font-sans tracking-tight uppercase tracking-wider">
+               Bankroll Trajectory
+             </h3>
+             <p className="text-[10px] text-slate-500 font-mono">Current Balance: <span className="text-emerald-400 font-bold">${userProfile?.balance.toFixed(2)}</span></p>
+          </div>
+          <div className="h-72 w-full mt-8">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={financeData?.chartData || []}>
+                <defs>
+                  <linearGradient id="colorBalance" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.4}/>
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="time" stroke="#475569" fontSize={10} tickMargin={8} minTickGap={20} tickLine={false} axisLine={false} />
+                <YAxis stroke="#475569" fontSize={10} domain={['auto', 'auto']} tickFormatter={(value) => `$${value}`} tickLine={false} axisLine={false} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px', fontSize: '12px', color: '#f8fafc' }}
+                  itemStyle={{ color: '#34d399', fontWeight: 'bold' }}
+                  labelStyle={{ color: '#94a3b8', marginBottom: '4px', fontSize: '10px' }}
+                />
+                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                <Area type="monotone" dataKey="balance" stroke="#34d399" strokeWidth={3} fillOpacity={1} fill="url(#colorBalance)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+      )}
     </div>
   );
 };

@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Fixture, Team } from "../types";
+import { Fixture, Team, BetSelection } from "../types";
 import { TeamCrest } from "./TeamCrest";
+import { getLiveInPlayOdds } from "../utils";
+import { MarketType } from "../types";
 
 interface LiveMatchesProps {
   fixtures: Fixture[];
@@ -17,6 +19,9 @@ interface LiveMatchesProps {
   ticks: number; // general ticks indicator
   selectedFixtureId: string;
   setSelectedFixtureId: (id: string) => void;
+  selectedBets: BetSelection[];
+  onAddBetSelection: (sel: BetSelection) => void;
+  onRemoveSelection: (fixId: string, type: string, selId: string) => void;
 }
 
 export const LiveMatches: React.FC<LiveMatchesProps> = ({
@@ -33,7 +38,10 @@ export const LiveMatches: React.FC<LiveMatchesProps> = ({
   onAdvanceRound,
   ticks,
   selectedFixtureId,
-  setSelectedFixtureId
+  setSelectedFixtureId,
+  selectedBets,
+  onAddBetSelection,
+  onRemoveSelection
 }) => {
   // Filters active fixtures for current round
   const activeFixtures = fixtures.filter(f => f.roundIndex === roundIndex);
@@ -157,6 +165,35 @@ export const LiveMatches: React.FC<LiveMatchesProps> = ({
 
   // Selected fixture is finished if its status is FT
   const isSelectedFT = selectedFixture ? selectedFixture.status === "FT" : false;
+  
+  const isHalfTimePause = selectedFixture?.elapsedTicks === 7 && sessionStorage.getItem(`ht_resume_${selectedFixture?.id}`) !== "true";
+
+  const isSelected = (fixId: string, marketType: string, selId: string) => {
+    return selectedBets.some(b => b.fixtureId === fixId && b.marketType === marketType && b.selectionId === selId);
+  };
+
+  const handleMarketClick = (
+    fixture: Fixture,
+    marketType: MarketType,
+    selectionId: string,
+    odds: number | null,
+    details: string,
+    marketName: string
+  ) => {
+    if (odds === null) return;
+    if (isSelected(fixture.id, marketType, selectionId)) {
+      onRemoveSelection(fixture.id, marketType, selectionId);
+    } else {
+      onAddBetSelection({
+        fixtureId: fixture.id,
+        marketType,
+        selectionId,
+        odds,
+        details,
+        marketName
+      });
+    }
+  };
 
   return (
     <div className="flex-1 min-height-0 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6 no-scrollbar relative max-h-none animate-fade-in">
@@ -216,7 +253,7 @@ export const LiveMatches: React.FC<LiveMatchesProps> = ({
                       onClick={() => onStartSimulation(speedMap[speedMode], selectedFixtureId)}
                       className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black px-4 py-2 rounded-xl text-xs cursor-pointer flex items-center gap-1 shadow-md shadow-emerald-500/10 animate-pulse transition-all"
                     >
-                      ▶️ WATCH MATCH LIVE (90 mins)
+                      {isHalfTimePause ? "▶️ START 2ND HALF (RESUME)" : "▶️ WATCH MATCH LIVE (90 mins)"}
                     </button>
                   )}
 
@@ -433,9 +470,14 @@ export const LiveMatches: React.FC<LiveMatchesProps> = ({
           <div className="xl:col-span-5 glass-panel-heavy rounded-2xl flex flex-col overflow-hidden min-h-[540px] border-white/10">
             {/* Showcase Header */}
             <div className="bg-white/5 p-4 border-b border-white/5 text-center">
-              <span className="text-[9px] text-slate-405 block uppercase font-black font-mono tracking-widest mb-1 select-none font-sans">
+              <span className="text-[9px] text-slate-405 block uppercase font-black font-mono tracking-widest select-none font-sans">
                 EVENT FOCUS • GRAPHIC SPORTSCAST
               </span>
+              {selectedFixture.weather && (
+                <span className="text-[9px] text-sky-400 block uppercase font-bold font-mono mt-1">
+                  {selectedFixture.weather === "Clear Skies" ? "☀️" : selectedFixture.weather === "Pouring Rain" ? "🌧️" : selectedFixture.weather === "Blizzard" ? "❄️" : "🔥"} WEATHER MODIFIER: {selectedFixture.weather}
+                </span>
+              )}
               
               <div className="flex items-center justify-between px-3 mt-2">
                 <div 
@@ -476,26 +518,89 @@ export const LiveMatches: React.FC<LiveMatchesProps> = ({
               </div>
             </div>
 
-            {/* 2D Mini Soccer Field visual attack */}
-            <div className="bg-black/40 p-2 aspect-[16/10] relative flex items-center justify-center overflow-hidden border-b border-white/5">
-              <div className="absolute inset-2 border-2 border-slate-700/20 rounded-lg flex items-center justify-center bg-radial from-[#133f21] to-[#0a2612] shadow-inner select-none opacity-85">
-                <div className="h-16 w-16 rounded-full border-2 border-slate-600/10 absolute"></div>
-                <div className="h-full w-0.5 bg-slate-600/10 absolute"></div>
-                <div className="absolute left-0 top-1/4 bottom-1/4 w-12 border border-r border-l-0 border-slate-600/10"></div>
-                <div className="absolute right-0 top-1/4 bottom-1/4 w-12 border border-l border-r-0 border-slate-600/10"></div>
-              </div>
+            {isHalfTimePause ? (
+              <div className="bg-black/60 aspect-[16/10] relative flex flex-col items-center justify-center overflow-hidden border-b border-emerald-500/30 p-6 shadow-inner animate-fade-in">
+                <h2 className="text-3xl font-black font-sans text-white tracking-widest uppercase text-center mb-2 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                   HALF TIME
+                </h2>
+                <div className="text-[11px] font-mono font-bold text-emerald-400 border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 rounded-full mb-6">
+                   LIVE ODDS UPDATED • IN-PLAY BETTING OPEN
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4 w-full max-w-lg mb-6">
+                   <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-center">
+                     <span className="text-[9px] text-slate-400 font-bold uppercase block mb-1">
+                       CURRENT OUTCOME
+                     </span>
+                     <span className="text-xl font-black font-mono text-white">
+                        {selectedFixture.homeScore === selectedFixture.awayScore ? "DRAW" : selectedFixture.homeScore > selectedFixture.awayScore ? getTeamName(selectedFixture.homeTeamId, true).toUpperCase() : getTeamName(selectedFixture.awayTeamId, true).toUpperCase()}
+                     </span>
+                   </div>
+                   <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-center">
+                     <span className="text-[9px] text-slate-400 font-bold uppercase block mb-1">
+                       TOTAL GOALS
+                     </span>
+                     <span className="text-xl font-black font-mono text-white">
+                        {Math.floor(selectedFixture.homeScore) + Math.floor(selectedFixture.awayScore)} GOALS
+                     </span>
+                   </div>
+                </div>
 
-              {/* Dynamic Action Overlay indicator */}
-              <div
-                className="absolute text-center flex flex-col items-center justify-center transition-all duration-500 scale-100 ease-out z-10 p-2 text-xs rounded bg-slate-900/95 border border-white/10 shadow-md transform -translate-x-1/2 -translate-y-1/2"
-                style={{ left: pitchAction.x, top: pitchAction.y }}
-              >
-                <div className="flex items-center gap-1.5 whitespace-nowrap">
-                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: pitchAction.teamColor }}></span>
-                  <span className="font-semibold text-slate-205">{pitchAction.msg}</span>
+                <div className="text-center text-[10px] text-emerald-400 font-mono">
+                  You can now place new in-play bets from the panel before resuming.
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="bg-black/40 p-3 aspect-[18/10] relative flex items-center justify-center overflow-hidden border-b border-white/5">
+                {/* 2D High-Fidelity Soccer Field Arena */}
+                <div className="absolute inset-3 border border-emerald-500/20 rounded-lg bg-gradient-to-tr from-[#08230b] via-[#103e18] to-[#08230b] shadow-2xl select-none overflow-hidden flex items-center justify-center w-full h-full">
+                  
+                  {/* Field Grass stripes */}
+                  <div className="absolute inset-0 flex divide-x divide-white/[0.02] pointer-events-none">
+                    <div className="flex-1 bg-black/[0.05]"></div>
+                    <div className="flex-1 bg-white/[0.02]"></div>
+                    <div className="flex-1 bg-black/[0.05]"></div>
+                    <div className="flex-1 bg-white/[0.02]"></div>
+                    <div className="flex-1 bg-black/[0.05]"></div>
+                    <div className="flex-1 bg-white/[0.02]"></div>
+                  </div>
+
+                  {/* Pitch Line markings */}
+                  <div className="absolute inset-2 border border-white/10 rounded-md pointer-events-none"></div>
+                  <div className="absolute inset-y-2 left-2 w-12 border-r border-y border-white/10 pointer-events-none"></div>
+                  <div className="absolute inset-y-2 right-2 w-12 border-l border-y border-white/10 pointer-events-none"></div>
+                  <div className="absolute inset-y-1/3 left-2 w-6 border-r border-y border-white/5 pointer-events-none"></div>
+                  <div className="absolute inset-y-1/3 right-2 w-6 border-l border-y border-white/5 pointer-events-none"></div>
+
+                  {/* Midfield Line & Center circle */}
+                  <div className="absolute inset-y-0 left-1/2 w-[1px] bg-white/10 pointer-events-none"></div>
+                  <div className="absolute h-16 w-16 rounded-full border border-white/10 pointer-events-none"></div>
+                  <div className="absolute h-2 w-2 rounded-full bg-white/20 pointer-events-none"></div>
+
+                  {/* Stadium Spotlights Corner Glow */}
+                  <div className="absolute -top-12 -left-12 w-24 h-24 bg-sky-400/10 rounded-full blur-xl pointer-events-none"></div>
+                  <div className="absolute -top-12 -right-12 w-24 h-24 bg-sky-400/10 rounded-full blur-xl pointer-events-none"></div>
+
+                  {/* Animated Attack Indicators (Pulse Ring) */}
+                  <div 
+                    className="absolute h-8 w-8 rounded-full border-2 border-emerald-400 bg-emerald-400/10 animate-ping pointer-events-none duration-1000 transition-all ease-out transform -translate-x-1/2 -translate-y-1/2"
+                    style={{ left: pitchAction.y, top: pitchAction.x }}
+                  ></div>
+
+                  {/* Dynamic Action Overlay indicator badge */}
+                  <div
+                    className="absolute text-center flex flex-col items-center justify-center transition-all duration-700 ease-out z-10 p-2 text-[10px] sm:text-xs rounded-xl bg-slate-950/90 border border-emerald-500/20 shadow-2xl transform -translate-x-1/2 -translate-y-1/2 backdrop-blur-md"
+                    style={{ left: pitchAction.y, top: pitchAction.x }}
+                  >
+                    <div className="flex items-center gap-1.5 whitespace-nowrap">
+                      <span className="h-2 w-2 rounded-full animate-pulse" style={{ backgroundColor: pitchAction.teamColor }}></span>
+                      <span className="font-bold text-slate-100 font-sans tracking-wide uppercase">{pitchAction.msg}</span>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            )}
 
             {/* Match Stats Bars */}
             <div className="p-4 space-y-3 border-b border-white/5">
@@ -532,6 +637,90 @@ export const LiveMatches: React.FC<LiveMatchesProps> = ({
                 );
               })}
             </div>
+
+            {/* LIVE IN-PLAY BETTING */}
+            {selectedFixture.status !== "FT" && (
+              <div className="p-4 border-b border-white/5 space-y-4">
+                <div className="flex items-center justify-between text-[10px] text-emerald-400 font-bold uppercase select-none pb-1 font-mono tracking-wider border-b border-white/5">
+                  <span>IN-PLAY MARKETS</span>
+                  <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span> LIVE ODDS</span>
+                </div>
+                
+                {/* MATCH WINNER */}
+                <div>
+                  <div className="text-[10px] text-slate-500 font-bold uppercase mb-2">1X2 Match Winner</div>
+                  {(() => {
+                    const homeOdds = getLiveInPlayOdds(selectedFixture, "MATCH_WINNER", "HOME", selectedFixture.odds?.homeWin ?? 2.0);
+                    const drawOdds = getLiveInPlayOdds(selectedFixture, "MATCH_WINNER", "DRAW", selectedFixture.odds?.draw ?? 3.0);
+                    const awayOdds = getLiveInPlayOdds(selectedFixture, "MATCH_WINNER", "AWAY", selectedFixture.odds?.awayWin ?? 2.0);
+                    
+                    return (
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { id: "HOME", odds: homeOdds, label: "HOME", fullName: `${getTeamName(selectedFixture.homeTeamId)} to Win` },
+                          { id: "DRAW", odds: drawOdds, label: "DRAW", fullName: `Draw` },
+                          { id: "AWAY", odds: awayOdds, label: "AWAY", fullName: `${getTeamName(selectedFixture.awayTeamId)} to Win` },
+                        ].map(m => (
+                          <button
+                            key={m.id}
+                            disabled={m.odds === null}
+                            onClick={() => handleMarketClick(selectedFixture, "MATCH_WINNER", m.id, m.odds, m.fullName, "Match Winner")}
+                            className={`py-2 rounded-xl flex flex-col items-center justify-center border transition-all cursor-pointer ${
+                              m.odds === null
+                                ? "bg-black/30 border-transparent text-slate-600 cursor-not-allowed opacity-50"
+                                : isSelected(selectedFixture.id, "MATCH_WINNER", m.id)
+                                ? "bg-emerald-500/15 border-emerald-500 text-emerald-400 font-bold"
+                                : "bg-black/20 border-white/5 text-slate-300 hover:border-white/15 hover:bg-white/5"
+                            }`}
+                          >
+                            <span className="text-[9px] text-slate-400 font-bold block leading-none mb-1">{m.label}</span>
+                            <span className="text-[11px] font-mono font-black tracking-tight leading-none text-slate-100">
+                              {m.odds !== null ? `@${m.odds.toFixed(2)}` : "🔒 SUSP"}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* BTTS */}
+                <div>
+                  <div className="text-[10px] text-slate-500 font-bold uppercase mb-2">Both Teams To Score</div>
+                  {(() => {
+                    const yesOdds = getLiveInPlayOdds(selectedFixture, "BOTH_TEAMS_TO_SCORE", "YES", selectedFixture.odds?.bothTeamsToScore?.yes ?? 1.90);
+                    const noOdds = getLiveInPlayOdds(selectedFixture, "BOTH_TEAMS_TO_SCORE", "NO", selectedFixture.odds?.bothTeamsToScore?.no ?? 1.90);
+                    
+                    return (
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          { id: "YES", odds: yesOdds, label: "YES", fullName: `Both Teams To Score: Yes` },
+                          { id: "NO", odds: noOdds, label: "NO", fullName: `Both Teams To Score: No` },
+                        ].map(m => (
+                          <button
+                            key={m.id}
+                            disabled={m.odds === null}
+                            onClick={() => handleMarketClick(selectedFixture, "BOTH_TEAMS_TO_SCORE", m.id, m.odds, m.fullName, "BTTS")}
+                            className={`py-2 rounded-xl flex flex-col items-center justify-center border transition-all cursor-pointer ${
+                              m.odds === null
+                                ? "bg-black/30 border-transparent text-slate-600 cursor-not-allowed opacity-50"
+                                : isSelected(selectedFixture.id, "BOTH_TEAMS_TO_SCORE", m.id)
+                                ? "bg-emerald-500/15 border-emerald-500 text-emerald-400 font-bold"
+                                : "bg-black/20 border-white/5 text-slate-300 hover:border-white/15 hover:bg-white/5"
+                            }`}
+                          >
+                            <span className="text-[9px] text-slate-400 font-bold block leading-none mb-1">{m.label}</span>
+                            <span className="text-[11px] font-mono font-black tracking-tight leading-none text-slate-100">
+                              {m.odds !== null ? `@${m.odds.toFixed(2)}` : "🔒 SUSP"}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+            )}
 
             {/* Commentary Timelines (autoscrolling list) */}
             <div className="flex-1 overflow-y-auto p-4 space-y-2.5 max-h-[220px] no-scrollbar glass-scrollbar">

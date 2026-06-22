@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Tv, Calendar, Ticket, Users, BarChart3, Trophy, Award, Plus, RotateCcw, Activity, LogOut, Gamepad2 } from "lucide-react";
+import { Tv, Calendar, Ticket, Users, BarChart3, Trophy, Award, Plus, RotateCcw, Activity, LogOut, Gamepad2, MessageSquare } from "lucide-react";
 
 interface HeaderProps {
   activeTab: string;
@@ -29,6 +29,8 @@ export const Header: React.FC<HeaderProps> = ({
     { id: "live", label: "Live", icon: <Tv size={14} className="opacity-85" /> },
     { id: "fixtures", label: "Fixtures & Odds", icon: <Calendar size={14} className="opacity-85" /> },
     { id: "bets", label: "My Bets", icon: <Ticket size={14} className="opacity-85" /> },
+    { id: "feed", label: "Fan Feed", icon: <MessageSquare size={14} className="opacity-85" /> },
+    { id: "store", label: "VIP Store", icon: <div className="text-amber-500 font-bold">🛒</div> },
     { id: "casino", label: "Elite Casino", icon: <Gamepad2 size={14} className="opacity-[0.95] text-amber-450" /> },
     { id: "teams", label: "Teams", icon: <Users size={14} className="opacity-85" /> },
     { id: "analytics", label: "Analytics", icon: <BarChart3 size={14} className="opacity-85" /> },
@@ -43,7 +45,7 @@ export const Header: React.FC<HeaderProps> = ({
         <Activity size={20} className="animate-pulse text-emerald-400" />
         <div className="hidden sm:block">
           <h1 className="text-sm font-black tracking-wider uppercase text-emerald-400 font-sans leading-none">
-            SportSim
+            CU Bet
           </h1>
           <p className="text-[10px] text-slate-400 font-mono tracking-widest leading-none mt-1">
             {gameMode === "LEAGUE" ? "LEAGUE CAMPAIGN" : "TOURNAMENT ENGINE"}

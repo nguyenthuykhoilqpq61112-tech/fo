@@ -1,4 +1,5 @@
 import { Team, Player, Position } from "../types";
+import { generatePlayerAge, generateEmptySeasonStats } from "../utils/playerUtils";
 
 // Names pool per nationality to generate high-fidelity players
 const playerNamesByRegion: { [key: string]: { first: string[]; last: string[] } } = {
@@ -94,6 +95,11 @@ function generateDeterministicSquad(teamId: string, region: string, rating: numb
     teamId,
     position: "GK",
     rating: gkRating,
+    age: generatePlayerAge("GK"),
+    fatigue: 0,
+    injured: false,
+    injuryRecoveryMatches: 0,
+    seasonStats: generateEmptySeasonStats(),
     goals: 0,
     assists: 0,
     saves: 0,
@@ -127,6 +133,11 @@ function generateDeterministicSquad(teamId: string, region: string, rating: numb
       teamId,
       position: "DEF",
       rating: defRating,
+      age: generatePlayerAge("DEF"),
+      fatigue: 0,
+      injured: false,
+      injuryRecoveryMatches: 0,
+      seasonStats: generateEmptySeasonStats(),
       goals: 0,
       assists: 0,
       saves: 0,
@@ -156,6 +167,11 @@ function generateDeterministicSquad(teamId: string, region: string, rating: numb
         teamId,
         position: "MID",
         rating: superRating,
+        age: generatePlayerAge("MID"),
+        fatigue: 0,
+        injured: false,
+        injuryRecoveryMatches: 0,
+        seasonStats: generateEmptySeasonStats(),
         goals: 0,
         assists: 0,
         saves: 0,
@@ -189,6 +205,11 @@ function generateDeterministicSquad(teamId: string, region: string, rating: numb
       teamId,
       position: "MID",
       rating: midRating,
+      age: generatePlayerAge("MID"),
+      fatigue: 0,
+      injured: false,
+      injuryRecoveryMatches: 0,
+      seasonStats: generateEmptySeasonStats(),
       goals: 0,
       assists: 0,
       saves: 0,
@@ -218,6 +239,11 @@ function generateDeterministicSquad(teamId: string, region: string, rating: numb
         teamId,
         position: "ATT",
         rating: superRating,
+        age: generatePlayerAge("ATT"),
+        fatigue: 0,
+        injured: false,
+        injuryRecoveryMatches: 0,
+        seasonStats: generateEmptySeasonStats(),
         goals: 0,
         assists: 0,
         saves: 0,
@@ -251,6 +277,11 @@ function generateDeterministicSquad(teamId: string, region: string, rating: numb
       teamId,
       position: "ATT",
       rating: attRating,
+      age: generatePlayerAge("ATT"),
+      fatigue: 0,
+      injured: false,
+      injuryRecoveryMatches: 0,
+      seasonStats: generateEmptySeasonStats(),
       goals: 0,
       assists: 0,
       saves: 0,
@@ -278,7 +309,9 @@ export function getInitialTeams(): Team[] {
       drawnMatches: 0,
       lostMatches: 0,
       goalsScored: 0,
-      goalsConceded: 0
+      goalsConceded: 0,
+      morale: 60,
+      rivalClubIds: [],
     };
   });
 }

@@ -20,6 +20,8 @@ import { Leaderboard } from "./components/Leaderboard";
 import { WelcomeScreen } from "./components/WelcomeScreen";
 import { LeagueStandings } from "./components/LeagueStandings";
 import { CasinoSuite } from "./components/CasinoSuite";
+import { VIPStore } from "./components/VIPStore";
+import { SocialFeed } from "./components/SocialFeed";
 import { WalletModal } from "./components/modals/WalletModal";
 import { WinnerCelebrationModal } from "./components/modals/WinnerCelebrationModal";
 import { GlobalEntityPreviewModal } from "./components/modals/GlobalEntityPreviewModal";
@@ -92,7 +94,13 @@ export default function App() {
   // Simulation Running State & Ticks
   const [isSimulating, setIsSimulating] = useState<boolean>(false);
   const [ticks, setTicks] = useState<number>(0);
-  const [selectedFixtureId, setSelectedFixtureId] = useState<string>("");
+  const [selectedFixtureId, setSelectedFixtureId] = useState<string>(() => {
+    return localStorage.getItem("lastSelectedFixtureId") || "";
+  });
+
+  useEffect(() => {
+    if (selectedFixtureId) localStorage.setItem("lastSelectedFixtureId", selectedFixtureId);
+  }, [selectedFixtureId]);
 
   // Custom states for Wallet Modal
   const [showWalletModal, setShowWalletModal] = useState<boolean>(false);
@@ -388,11 +396,36 @@ export default function App() {
     });
   };
 
+  // Track Bankroll History automatically for Analytics
+  useEffect(() => {
+    if (userProfile) {
+      const history = userProfile.bankrollHistory || [];
+      const currentBal = userProfile.balance;
+      const lastBal = history.length > 0 ? history[history.length - 1].balance : null;
+
+      // Only push new history point if changed
+      if (lastBal === null || Math.abs(currentBal - lastBal) > 0.01) {
+        setUserProfile((prev) => {
+           if (!prev) return prev;
+           return {
+             ...prev,
+             bankrollHistory: [...(prev.bankrollHistory || []), { timestamp: Date.now(), balance: prev.balance, detail: "Update" }]
+           };
+        });
+      }
+    }
+  }, [userProfile?.balance]);
+
   // 3. Increment Simulation Tickers (Exclusive Watched Match Focus)
   const handleStartSimulation = (speedMs: number, watchedId: string) => {
     if (!userProfile) return;
     setIsSimulating(true);
     setActiveTab("live");
+
+    const watchedFixCheck = fixtures.find((f) => f.id === watchedId);
+    if (watchedFixCheck && watchedFixCheck.elapsedTicks === 7) {
+      sessionStorage.setItem(`ht_resume_${watchedId}`, "true"); // User clicked resume
+    }
 
     if (simTimerRef.current) clearInterval(simTimerRef.current);
 
@@ -406,6 +439,18 @@ export default function App() {
           setIsSimulating(false);
           if (simTimerRef.current) clearInterval(simTimerRef.current);
           return prevFixtures;
+        }
+
+        // --- HALF TIME PAUSE LOGIC ---
+        // If we are exactly at tick 7 (Minute 45, Half Time event logged) 
+        // and we haven't explicitly instructed to resume...
+        const htResumeKey = `ht_resume_${watchedId}`;
+        if (watchedFix.elapsedTicks === 7 && sessionStorage.getItem(htResumeKey) !== "true") {
+           setIsSimulating(false);
+           if (simTimerRef.current) clearInterval(simTimerRef.current);
+           // Dispatch event for UI to know half time has struck and show dashboard
+           window.dispatchEvent(new CustomEvent('halftime-pause', { detail: { matchId: watchedId }}));
+           return prevFixtures;
         }
 
         const nextTick = watchedFix.elapsedTicks + 1;
@@ -464,6 +509,10 @@ export default function App() {
     setFixtures((prevFixtures) => {
       const watchedFix = prevFixtures.find((f) => f.id === watchedId);
       if (!watchedFix || watchedFix.status === "FT") return prevFixtures;
+
+      if (watchedFix.elapsedTicks === 7) {
+        sessionStorage.setItem(`ht_resume_${watchedId}`, "true"); // User clicked resume
+      }
 
       const nextTick = watchedFix.elapsedTicks + 1;
       if (nextTick > 20) return prevFixtures;
@@ -624,19 +673,22 @@ export default function App() {
           if (mode === "UNDER" && totalGoals >= line) wonAll = false;
         } else if (sel.marketType === "OVER_UNDER_CORNERS") {
           const totalCorners = (match.stats?.home.corners || 0) + (match.stats?.away.corners || 0);
-          const line = match.odds.overUnderCorners?.line || 9.5;
-          if (sel.selectionId === "OVER" && totalCorners <= line) wonAll = false;
-          if (sel.selectionId === "UNDER" && totalCorners >= line) wonAll = false;
+          const [mode, lineStr] = sel.selectionId.split("_");
+          const line = parseFloat((lineStr || "0").replace("_", "."));
+          if (mode === "OVER" && totalCorners <= line) wonAll = false;
+          if (mode === "UNDER" && totalCorners >= line) wonAll = false;
         } else if (sel.marketType === "OVER_UNDER_CARDS") {
           const totalCards = (match.stats?.home.yellowCards || 0) + (match.stats?.home.redCards || 0) + (match.stats?.away.yellowCards || 0) + (match.stats?.away.redCards || 0);
-          const line = match.odds.overUnderCards?.line || 3.5;
-          if (sel.selectionId === "OVER" && totalCards <= line) wonAll = false;
-          if (sel.selectionId === "UNDER" && totalCards >= line) wonAll = false;
+          const [mode, lineStr] = sel.selectionId.split("_");
+          const line = parseFloat((lineStr || "0").replace("_", "."));
+          if (mode === "OVER" && totalCards <= line) wonAll = false;
+          if (mode === "UNDER" && totalCards >= line) wonAll = false;
         } else if (sel.marketType === "OVER_UNDER_SAVES") {
           const totalSaves = (match.stats?.home.saves || 0) + (match.stats?.away.saves || 0);
-          const line = match.odds.overUnderSaves?.line || 7.5;
-          if (sel.selectionId === "OVER" && totalSaves <= line) wonAll = false;
-          if (sel.selectionId === "UNDER" && totalSaves >= line) wonAll = false;
+          const [mode, lineStr] = sel.selectionId.split("_");
+          const line = parseFloat((lineStr || "0").replace("_", "."));
+          if (mode === "OVER" && totalSaves <= line) wonAll = false;
+          if (mode === "UNDER" && totalSaves >= line) wonAll = false;
         } else if (sel.marketType === "EXACT_SCORE") {
           const outcomeScore = `${hScore}-${aScore}`;
           if (sel.selectionId !== outcomeScore) wonAll = false;
@@ -811,42 +863,86 @@ export default function App() {
     persistStateToCache(nextProfile, teams, fixtures, tipsters, tipsterTickets);
   };
 
+  const handleCashOut = (ticketId: string, offerAmount: number) => {
+    if (!userProfile) return;
+    
+    const nextTickets = userProfile.tickets.map(t => {
+       if (t.id === ticketId && t.status === "PENDING") {
+           return { ...t, status: "CASHED_OUT" as const, cashedOutAmount: offerAmount };
+       }
+       return t;
+    });
+
+    const nextBalance = Math.round((userProfile.balance + offerAmount) * 100) / 100;
+
+    const nextProfile: Profile = {
+       ...userProfile,
+       balance: nextBalance,
+       tickets: nextTickets
+    };
+
+    setUserProfile(nextProfile);
+    persistStateToCache(nextProfile, teams, fixtures, tipsters, tipsterTickets);
+  };
+
+  const handlePurchaseVIPItem = (itemDetails: any) => {
+    if (!userProfile) return;
+    if (userProfile.balance < itemDetails.price) return;
+    const newItem = {
+      ...itemDetails,
+      dateStr: new Date().toLocaleDateString(),
+      id: Math.random().toString(36).substring(7)
+    };
+    const nextProfile: Profile = {
+       ...userProfile,
+       balance: userProfile.balance - itemDetails.price,
+       purchasedItems: [...(userProfile.purchasedItems || []), newItem]
+    };
+    setUserProfile(nextProfile);
+    persistStateToCache(nextProfile, teams, fixtures, tipsters, tipsterTickets);
+  };
+
+  const handleLiquidateVIPItem = (item: any) => {
+    if (!userProfile) return;
+    const items = userProfile.purchasedItems || [];
+    const nextProfile: Profile = {
+       ...userProfile,
+       balance: userProfile.balance + item.worth,
+       purchasedItems: items.filter(i => i.id !== item.id)
+    };
+    setUserProfile(nextProfile);
+    persistStateToCache(nextProfile, teams, fixtures, tipsters, tipsterTickets);
+  };
+
   // Add a prediction to the slip matching exclusivity constraints as specified!
   const handleAddBetSelection = (newSel: BetSelection) => {
-    setCollapsedSlip(false); // Auto expand betting slip panel to view added selections immediately!
+    setCollapsedSlip(false);
     setSelectedBets((prev) => {
       let filtered = prev;
 
-      // 1. MATCH_WINNER: Exclusive (only physical 1 per fixtureId allowed)
-      if (newSel.marketType === "MATCH_WINNER") {
-        filtered = prev.filter(
-          (sel) =>
-            !(
-              sel.fixtureId === newSel.fixtureId &&
-              sel.marketType === "MATCH_WINNER"
-            ),
-        );
-      }
+      const outcomeMarkets = ["MATCH_WINNER", "DOUBLE_CHANCE", "EXACT_SCORE"];
 
-      // 2. EXACT_SCORE: Exclusive (only one score predicted per match)
-      else if (newSel.marketType === "EXACT_SCORE") {
-        filtered = prev.filter(
-          (sel) =>
-            !(
-              sel.fixtureId === newSel.fixtureId &&
-              sel.marketType === "EXACT_SCORE"
-            ),
-        );
-      }
-
-      // 3. ANYTIME_GOALSCORER: Non-exclusive, block double selecting identical players
-      else if (newSel.marketType === "ANYTIME_GOALSCORER") {
+      if (newSel.marketType === "ANYTIME_GOALSCORER") {
         filtered = prev.filter(
           (sel) =>
             !(
               sel.fixtureId === newSel.fixtureId &&
               sel.marketType === "ANYTIME_GOALSCORER" &&
               sel.selectionId === newSel.selectionId
+            ),
+        );
+      } else if (outcomeMarkets.includes(newSel.marketType)) {
+        // Enforce mutual exclusivity among Outcome-based markets (1X2, Double Chance, Exact score)
+        filtered = prev.filter(
+          (sel) => !(sel.fixtureId === newSel.fixtureId && outcomeMarkets.includes(sel.marketType))
+        );
+      } else {
+        // OVER_UNDER_GOALS, OVER_UNDER_CORNERS, BOTH_TEAMS_TO_SCORE etc...
+        filtered = prev.filter(
+          (sel) =>
+            !(
+              sel.fixtureId === newSel.fixtureId &&
+              sel.marketType === newSel.marketType
             ),
         );
       }
@@ -856,34 +952,31 @@ export default function App() {
   };
 
   const handleAddMultipleSelections = (newSels: BetSelection[]) => {
-    setCollapsedSlip(false); // Auto expand betting slip panel to see recommended predictions immediately!
+    setCollapsedSlip(false);
     setSelectedBets((prev) => {
       let current = [...prev];
+      const outcomeMarkets = ["MATCH_WINNER", "DOUBLE_CHANCE", "EXACT_SCORE"];
+      
       newSels.forEach((newSel) => {
-        // Enforce market exclusions first
-        if (newSel.marketType === "MATCH_WINNER") {
-          current = current.filter(
-            (sel) =>
-              !(
-                sel.fixtureId === newSel.fixtureId &&
-                sel.marketType === "MATCH_WINNER"
-              ),
-          );
-        } else if (newSel.marketType === "EXACT_SCORE") {
-          current = current.filter(
-            (sel) =>
-              !(
-                sel.fixtureId === newSel.fixtureId &&
-                sel.marketType === "EXACT_SCORE"
-              ),
-          );
-        } else if (newSel.marketType === "ANYTIME_GOALSCORER") {
+        if (newSel.marketType === "ANYTIME_GOALSCORER") {
           current = current.filter(
             (sel) =>
               !(
                 sel.fixtureId === newSel.fixtureId &&
                 sel.marketType === "ANYTIME_GOALSCORER" &&
                 sel.selectionId === newSel.selectionId
+              ),
+          );
+        } else if (outcomeMarkets.includes(newSel.marketType)) {
+          current = current.filter(
+            (sel) => !(sel.fixtureId === newSel.fixtureId && outcomeMarkets.includes(sel.marketType))
+          );
+        } else {
+          current = current.filter(
+            (sel) =>
+              !(
+                sel.fixtureId === newSel.fixtureId &&
+                sel.marketType === newSel.marketType
               ),
           );
         }
@@ -1114,6 +1207,9 @@ export default function App() {
               ticks={ticks}
               selectedFixtureId={selectedFixtureId}
               setSelectedFixtureId={setSelectedFixtureId}
+              selectedBets={selectedBets}
+              onAddBetSelection={handleAddBetSelection}
+              onRemoveSelection={handleRemoveSelection}
             />
           )}
 
@@ -1135,6 +1231,7 @@ export default function App() {
               fixtures={fixtures}
               teams={teams}
               balance={userProfile.balance}
+              onCashOut={handleCashOut}
             />
           )}
 
@@ -1142,8 +1239,8 @@ export default function App() {
             <TeamsList teams={teams} fixtures={fixtures} />
           )}
 
-          {activeTab === "analytics" && (
-            <Analytics teams={teams} fixtures={fixtures} />
+          {activeTab === "analytics" && userProfile && (
+            <Analytics teams={teams} fixtures={fixtures} userProfile={userProfile} />
           )}
 
           {activeTab === "tournament" &&
@@ -1175,10 +1272,27 @@ export default function App() {
               currentRoundIndex={userProfile.currentRoundIndex}
             />
           )}
+
+          {activeTab === "store" && userProfile && (
+             <VIPStore
+               balance={userProfile.balance}
+               purchasedItems={userProfile.purchasedItems || []}
+               onPurchase={handlePurchaseVIPItem}
+               onLiquidate={handleLiquidateVIPItem}
+             />
+          )}
+
+          {activeTab === "feed" && userProfile && (
+             <SocialFeed
+               fixtures={fixtures}
+               teams={teams}
+               roundLabel={currentRoundLabel}
+             />
+          )}
         </main>
 
         {/* Collapsible right panel Betting Slip (Width 25%) */}
-        {activeTab !== "casino" && (
+        {activeTab !== "casino" && activeTab !== "store" && activeTab !== "feed" && (
           <BettingSlip
             selections={selectedBets}
             fixtures={fixtures}

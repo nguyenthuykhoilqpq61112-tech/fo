@@ -6,9 +6,10 @@ interface MyBetsProps {
   fixtures: Fixture[];
   teams: Team[];
   balance: number;
+  onCashOut?: (ticketId: string, offer: number) => void;
 }
 
-export const MyBets: React.FC<MyBetsProps> = ({ tickets, fixtures, teams, balance }) => {
+export const MyBets: React.FC<MyBetsProps> = ({ tickets, fixtures, teams, balance, onCashOut }) => {
   const [expandedTicketId, setExpandedTicketId] = useState<string | null>(null);
 
   // Calculate Betting stats
@@ -26,6 +27,8 @@ export const MyBets: React.FC<MyBetsProps> = ({ tickets, fixtures, teams, balanc
       return acc + (t.potentialPayout - t.stake);
     } else if (t.status === "LOST") {
       return acc - t.stake;
+    } else if (t.status === "CASHED_OUT" && t.cashedOutAmount) {
+      return acc + (t.cashedOutAmount - t.stake);
     }
     return acc;
   }, 0);
@@ -61,8 +64,15 @@ export const MyBets: React.FC<MyBetsProps> = ({ tickets, fixtures, teams, balanc
       if (awayS > homeS) actual = "AWAY";
 
       const matched = selectionId === actual;
+      let extraInfo = "";
+      if (actual === "DRAW" && f.penaltyScore && !matched) {
+         const [hPen, aPen] = f.penaltyScore.split("-").map(Number);
+         if (hPen > aPen) extraInfo = ` (Home won on pens)`;
+         if (aPen > hPen) extraInfo = ` (Away won on pens)`;
+      }
+
       return {
-        text: `FT: ${ftDisplay}. Prediction ${selectionId === "HOME" ? "Home Win" : selectionId === "AWAY" ? "Away Win" : "Draw"} ${matched ? "Hit!" : "Missed"}`,
+        text: `FT: ${ftDisplay}. Prediction ${selectionId === "HOME" ? "Home Win" : selectionId === "AWAY" ? "Away Win" : "Draw"} ${matched ? "Hit!" : "Missed"}${extraInfo}`,
         state: f.status === "FT" ? (matched ? "WON" : "LOST") : "LIVE"
       };
 
@@ -86,9 +96,16 @@ export const MyBets: React.FC<MyBetsProps> = ({ tickets, fixtures, teams, balanc
       let matched = false;
       if (selectionId === "YES" && bothScored) matched = true;
       if (selectionId === "NO" && !bothScored) matched = true;
+      
+      let stateResult = f.status === "FT" ? (matched ? "WON" : "LOST") : "LIVE";
+      if (f.status === "LIVE") {
+        if (selectionId === "YES" && bothScored) stateResult = "WON_EARLY";
+        if (selectionId === "NO" && bothScored) stateResult = "LOST_EARLY";
+      }
+
       return {
-        text: `FT: ${ftDisplay}. Both Scored: ${bothScored ? "Yes" : "No"}`,
-        state: f.status === "FT" ? (matched ? "WON" : "LOST") : "LIVE"
+        text: `Current Score: ${ftDisplay}. Both Scored: ${bothScored ? "Yes" : "No"}`,
+        state: stateResult
       };
       
     } else if (marketType === "OVER_UNDER_GOALS") {
@@ -98,39 +115,51 @@ export const MyBets: React.FC<MyBetsProps> = ({ tickets, fixtures, teams, balanc
       let matched = false;
       if (mode === "OVER" && totalGoals > line) matched = true;
       if (mode === "UNDER" && totalGoals < line) matched = true;
+      
+      let stateResult = f.status === "FT" ? (matched ? "WON" : "LOST") : "LIVE";
+      if (f.status === "LIVE") {
+         if (mode === "OVER" && totalGoals > line) stateResult = "WON_EARLY";
+         if (mode === "UNDER" && totalGoals > line) stateResult = "LOST_EARLY"; // Cannot go back under
+      }
+
       return {
-        text: `FT: ${ftDisplay} (${totalGoals} goals). Prediction: Over/Under ${line}`,
-        state: f.status === "FT" ? (matched ? "WON" : "LOST") : "LIVE"
+        text: `Score: ${ftDisplay} (${totalGoals} goals). Prediction: Over/Under ${line}`,
+        state: stateResult
       };
       
     } else if (marketType === "OVER_UNDER_CORNERS" || marketType === "OVER_UNDER_CARDS" || marketType === "OVER_UNDER_SAVES") {
       let val = 0;
       let statName = "";
-      let line = 0;
+      
+      const [mode, lineStr] = selectionId.split("_");
+      const paramLine = parseFloat((lineStr || "0").replace("_", "."));
       
       if (marketType === "OVER_UNDER_CORNERS") { 
         val = (f.stats?.home.corners || 0) + (f.stats?.away.corners || 0); 
         statName = "Corners";
-        line = f.odds.overUnderCorners?.line || 9.5;
       }
       if (marketType === "OVER_UNDER_CARDS") { 
         val = (f.stats?.home.yellowCards || 0) + (f.stats?.home.redCards || 0) + (f.stats?.away.yellowCards || 0) + (f.stats?.away.redCards || 0); 
         statName = "Cards"; 
-        line = f.odds.overUnderCards?.line || 3.5;
       }
       if (marketType === "OVER_UNDER_SAVES") { 
         val = (f.stats?.home.saves || 0) + (f.stats?.away.saves || 0); 
         statName = "Saves"; 
-        line = f.odds.overUnderSaves?.line || 7.5;
       }
       
       let matched = false;
-      if (selectionId === "OVER" && val > line) matched = true;
-      if (selectionId === "UNDER" && val < line) matched = true;
+      if (mode === "OVER" && val > paramLine) matched = true;
+      if (mode === "UNDER" && val < paramLine) matched = true;
+      
+      let stateResult = f.status === "FT" ? (matched ? "WON" : "LOST") : "LIVE";
+      if (f.status === "LIVE") {
+         if (mode === "OVER" && val > paramLine) stateResult = "WON_EARLY";
+         if (mode === "UNDER" && val > paramLine) stateResult = "LOST_EARLY";
+      }
       
       return {
-        text: `Total ${statName}: ${val}. Prediction: ${selectionId} ${line} ${matched ? "Hit!" : "Missed"}`,
-        state: f.status === "FT" ? (matched ? "WON" : "LOST") : "LIVE"
+        text: `Total ${statName}: ${val}. Prediction: ${mode} ${paramLine} ${matched ? "Hit!" : "Missed"}`,
+        state: stateResult
       };
       
     } else if (marketType === "EXACT_SCORE") {
@@ -146,9 +175,15 @@ export const MyBets: React.FC<MyBetsProps> = ({ tickets, fixtures, teams, balanc
       const scorer = teams.flatMap(t => t.players).find(p => p.id === selectionId);
       const goalsFound = f.events.filter(ev => ev.type === "GOAL" && ev.playerId === selectionId).length;
       const matched = goalsFound > 0;
+      
+      let stateResult = f.status === "FT" ? (matched ? "WON" : "LOST") : "LIVE";
+      if (f.status === "LIVE") {
+         if (goalsFound > 0) stateResult = "WON_EARLY";
+      }
+
       return {
         text: `${scorer?.name || "Player"} scored ${goalsFound} goals in this match.`,
-        state: f.status === "FT" ? (matched ? "WON" : "LOST") : "LIVE"
+        state: stateResult
       };
     }
   };
@@ -240,8 +275,42 @@ export const MyBets: React.FC<MyBetsProps> = ({ tickets, fixtures, teams, balanc
               const isWon = ticket.status === "WON";
               const isLost = ticket.status === "LOST";
               const isPending = ticket.status === "PENDING";
+              const isCashedOut = ticket.status === "CASHED_OUT";
 
-              const netRet = isWon ? (ticket.potentialPayout - ticket.stake) : isLost ? -ticket.stake : 0;
+              let netRet = isWon ? (ticket.potentialPayout - ticket.stake) : isLost ? -ticket.stake : 0;
+              if (isCashedOut && ticket.cashedOutAmount) {
+                netRet = ticket.cashedOutAmount - ticket.stake;
+              }
+
+              let cashOutOffer = 0;
+              if (isPending) {
+                let combinedOddsLeft = 1;
+                let anyLost = false;
+                let allPending = true;
+                let allWon = true;
+
+                ticket.selections.forEach(sel => {
+                    const result = getSelectionResultText(sel.fixtureId, sel.marketType, sel.selectionId);
+                    if (result.state !== "PENDING" && result.state !== "SCHEDULED") allPending = false;
+                    if (result.state !== "WON" && result.state !== "WON_EARLY") allWon = false;
+                    if (result.state === "LOST" || result.state === "LOST_EARLY") anyLost = true;
+                    else if (result.state === "PENDING" || result.state === "LIVE") {
+                       combinedOddsLeft *= sel.odds;
+                    }
+                });
+                
+                if (anyLost) {
+                  cashOutOffer = 0;
+                } else if (allWon) {
+                   // Bet fully won, allow 100% immediate cash out before round completes.
+                  cashOutOffer = ticket.potentialPayout;
+                } else if (allPending) {
+                  cashOutOffer = ticket.stake; // 100% refund if not started
+                } else {
+                  const fairValue = ticket.potentialPayout / Math.max(1.01, combinedOddsLeft);
+                  cashOutOffer = Math.max(fairValue * 0.9, ticket.stake * 0.5);
+                }
+              }
 
               return (
                 <div
@@ -251,11 +320,16 @@ export const MyBets: React.FC<MyBetsProps> = ({ tickets, fixtures, teams, balanc
                       ? "border-emerald-500/20 hover:border-emerald-500/40 shadow-md"
                       : isLost
                       ? "border-red-500/10 hover:border-red-500/30"
+                      : isCashedOut
+                      ? "border-amber-500/20 hover:border-amber-500/40"
                       : "border-white/5 hover:border-white/15"
                   }`}
                 >
-                  {/* Ticket Header bar */}
-                  <div className="p-3.5 flex items-center justify-between flex-wrap gap-2 text-xs select-none">
+                  {/* Ticket Header bar (Now fully clickable with premium feedback hover state) */}
+                  <div 
+                    onClick={() => setExpandedTicketId(isExpanded ? null : ticket.id)}
+                    className="p-3.5 flex items-center justify-between flex-wrap gap-2 text-xs select-none cursor-pointer hover:bg-white/[0.04] transition-colors"
+                  >
                     <div className="flex items-center gap-2">
                       <span className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold tracking-tight uppercase ${
                         ticket.type === "ACCUMULATOR" ? "bg-emerald-500/15 text-emerald-450 border border-emerald-500/10" : "bg-sky-500/15 text-sky-400 border border-sky-500/10"
@@ -280,25 +354,60 @@ export const MyBets: React.FC<MyBetsProps> = ({ tickets, fixtures, teams, balanc
                       </span>
 
                       {/* Status Tag */}
-                      <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold text-center w-18 ${
+                      <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold text-center w-auto min-w-[72px] ${
                         isWon
                           ? "bg-emerald-500/20 text-emerald-400"
                           : isLost
-                          ? "bg-red-500/20 text-red-00"
+                          ? "bg-red-500/20 text-red-400"
+                          : isCashedOut
+                          ? "bg-amber-500/20 text-amber-400"
                           : "bg-white/5 text-slate-500"
                       }`}>
                         {ticket.status}
                       </span>
+                      
+                      {/* Cash Out Button */}
+                      {isPending && cashOutOffer > 0 && onCashOut && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onCashOut(ticket.id, cashOutOffer); }}
+                          className="bg-amber-500 hover:bg-amber-400 text-amber-950 font-bold text-[10px] uppercase px-3 py-1 rounded cursor-pointer transition-colors shadow-lg shadow-amber-500/20"
+                        >
+                          Cash Out ${cashOutOffer.toFixed(2)}
+                        </button>
+                      )}
 
-                      {/* Toggle Expand button */}
-                      <button
-                        onClick={() => setExpandedTicketId(isExpanded ? null : ticket.id)}
-                        className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/5 cursor-pointer text-[10px]"
-                      >
+                      {/* Toggle Expand button display */}
+                      <span className="text-slate-400 text-xs">
                         {isExpanded ? "🔼" : "🔽"}
-                      </button>
+                      </span>
                     </div>
                   </div>
+
+                  {/* Collapsed Selection indicator lines (Displays what teams were bet on when collapsed!) */}
+                  {!isExpanded && (
+                    <div className="px-3.5 pb-3 flex flex-wrap gap-2 pt-0.5 border-t border-dashed border-white/5">
+                      {ticket.selections.map((sel, idx) => {
+                        const fix = fixtures.find(f => f.id === sel.fixtureId);
+                        const matchupLabel = fix 
+                          ? `${getTeamName(fix.homeTeamId, true)} vs ${getTeamName(fix.awayTeamId, true)}` 
+                          : "Unknown Matchup";
+                        
+                        return (
+                          <div 
+                            key={idx} 
+                            onClick={() => setExpandedTicketId(ticket.id)}
+                            className="bg-white/5 border border-white/5 hover:border-emerald-500/25 hover:bg-emerald-500/[0.02] text-[10px] px-2.5 py-1 rounded-xl text-slate-350 font-sans tracking-wide cursor-pointer transition-all flex items-center gap-1.5"
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/50"></span>
+                            <span className="font-semibold text-slate-200">{matchupLabel}</span>
+                            <span className="text-slate-500 font-mono">•</span>
+                            <span className="text-slate-400 font-mono text-[9px]">{sel.details}</span>
+                            <span className="text-emerald-400 font-mono font-bold text-[9px] bg-emerald-500/10 px-1 rounded">@{sel.odds.toFixed(2)}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
 
                   {/* Summary Net performance and payout bar */}
                   <div className="bg-black/30 px-3.5 py-2 px-3 flex items-center justify-between text-[11px] font-mono border-t border-white/5 text-slate-400 select-none">
@@ -374,13 +483,13 @@ export const MyBets: React.FC<MyBetsProps> = ({ tickets, fixtures, teams, balanc
 
                                 {/* Selection validation indicator tag */}
                                 <span className={`px-2 py-0.5 rounded text-[8px] tracking-tight uppercase font-black ${
-                                  isSelWon
+                                  isSelWon || resultObj.state === "WON_EARLY"
                                     ? "bg-emerald-500/20 text-emerald-400"
-                                    : isSelLost
-                                    ? "bg-red-500/20 text-red-00"
+                                    : isSelLost || resultObj.state === "LOST_EARLY"
+                                    ? "bg-red-500/20 text-red-400"
                                     : "bg-white/5 text-slate-500 border border-white/5"
                                 }`}>
-                                  {resultObj.state}
+                                  {resultObj.state.replace("_", " ")}
                                 </span>
                               </div>
                             </div>
