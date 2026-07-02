@@ -104,6 +104,29 @@ export function calculateCashOutValue(
   fixtures: Fixture[],
   currentOddsMap: Record<string, number | null>,
 ): number | null {
+  // Multi-single tickets are valued per leg: one lost leg must not zero out
+  // the other independent singles.
+  if (ticket.type === "SINGLE" && ticket.selectionStakes) {
+    let value = 0;
+    for (const sel of ticket.selections) {
+      const fix = fixtures.find((f) => f.id === sel.fixtureId);
+      const stake = ticket.selectionStakes[`${sel.fixtureId}-${sel.marketType}-${sel.selectionId}`] || 0;
+      if (!fix || stake === 0) continue;
+
+      const legResult = checkLegResult(sel, fix);
+      if (legResult === "LOST") continue;
+
+      let legFactor = 1.0;
+      if (legResult === "PENDING" && fix.status === "LIVE") {
+        const currentOdds = currentOddsMap[`${sel.marketType}:${sel.selectionId}`];
+        if (currentOdds === null || currentOdds === undefined) return null; // suspended
+        legFactor = sel.odds / Math.max(1.01, currentOdds);
+      }
+      value += stake * sel.odds * legFactor;
+    }
+    return Math.max(0, Math.round(value * 0.92 * 100) / 100);
+  }
+
   let factor = 1.0;
 
   for (const sel of ticket.selections) {

@@ -39,7 +39,8 @@ export const Header: React.FC<HeaderProps> = ({
     { id: "teams", label: "Teams", icon: <Users size={14} className="opacity-85" /> },
     { id: "analytics", label: "Analytics", icon: <BarChart3 size={14} className="opacity-85" /> },
     { id: "tournament", label: gameMode === "LEAGUE" ? "Standings" : "Tournament", icon: <Trophy size={14} className="opacity-85" /> },
-    { id: "leaderboard", label: "Leaderboard", icon: <Award size={14} className="opacity-85" /> }
+    { id: "leaderboard", label: "Leaderboard", icon: <Award size={14} className="opacity-85" /> },
+    { id: "career", label: "Career", icon: <div className="text-yellow-400 font-bold">🏅</div> }
   ];
 
   return (

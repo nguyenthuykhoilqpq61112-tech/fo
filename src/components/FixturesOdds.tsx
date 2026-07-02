@@ -33,6 +33,10 @@ export const FixturesOdds: React.FC<FixturesOddsProps> = ({
     if (!odds || !isOwnerMatch) return odds;
     return Math.round(odds * 1.05 * 100) / 100;
   };
+
+  const triggerOpenHighlights = (fixtureId: string) => {
+    window.dispatchEvent(new CustomEvent("open-highlights", { detail: { fixtureId } }));
+  };
   // Filter scheduled fixtures of current round
   const roundFixtures = fixtures.filter(f => f.roundIndex === roundIndex);
   
@@ -406,8 +410,15 @@ export const FixturesOdds: React.FC<FixturesOddsProps> = ({
                 {/* Expand sub markets trigger (Odds details draw) */}
                 <div className="bg-white/5 px-3 py-1.5 flex items-center justify-between">
                   {isFT ? (
-                    <span className="text-[9px] text-slate-500 font-mono font-bold uppercase select-none">
+                    <span className="text-[9px] text-slate-500 font-mono font-bold uppercase select-none flex items-center gap-2">
                       🔒 Match Finished • Bets Blocked
+                      <button
+                        type="button"
+                        onClick={() => triggerOpenHighlights(fixture.id)}
+                        className="text-[9px] text-amber-400 hover:text-amber-300 font-black tracking-widest uppercase cursor-pointer"
+                      >
+                        📋 HIGHLIGHTS
+                      </button>
                     </span>
                   ) : isLive ? (
                     <span className="text-[9px] text-red-400 font-mono font-bold uppercase select-none flex items-center gap-1 animate-pulse">

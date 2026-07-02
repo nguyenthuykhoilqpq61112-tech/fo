@@ -268,6 +268,9 @@ export interface BetTicket {
   timestamp: number;
   // For single mode: maps selection key (fixtureId-marketType-selectionId) to individual stake
   selectionStakes?: { [selId: string]: number };
+  // Actual amount paid out at settlement (differs from potentialPayout for
+  // multi-single tickets where only some legs won)
+  settledPayout?: number;
   cashedOutAmount?: number;
   cashedOutRound?: number;
 }
@@ -290,6 +293,27 @@ export interface BetBuilderTicket {
   placedAt: number; // roundIndex
 }
 
+export type ChallengeType =
+  | "WIN_ACCUMULATORS"      // Win N acca bets
+  | "BET_ON_UNDERDOG_WIN"   // Bet on team with odds > 3.0 and they win
+  | "CASHOUT_PROFIT"        // Cash out a bet in profit
+  | "BET_BUILDER_WIN"       // Win a Bet Builder
+  | "WIN_STREAK"            // Win bets 3 rounds in a row
+  | "BET_ON_DRAW";          // Bet on a draw that actually happens
+
+export interface Challenge {
+  id: string;
+  type: ChallengeType;
+  title: string;
+  description: string;
+  target: number;    // e.g. 3 for "Win 3 accumulators"
+  progress: number;
+  reward: number;    // cash reward
+  bonusXP?: number;
+  status: "ACTIVE" | "COMPLETED" | "EXPIRED";
+  expiresAtRound: number;
+}
+
 export interface Profile {
   username: string;
   balance: number;
@@ -301,6 +325,7 @@ export interface Profile {
   bankrollHistory?: { timestamp: number; balance: number; detail: string }[];
   ownedTeamId?: string; // ID of team they've purchased and manage
   betBuilderTickets?: BetBuilderTicket[];
+  challenges?: Challenge[];
 }
 
 export type ItemRarity = 'Common' | 'Rare' | 'Ultra Rare' | 'Legendary';
@@ -357,6 +382,30 @@ export interface Tipster {
   costPerMatchday?: number;
   isHired?: boolean;
   tipsThisMatchday?: TipsterTip[];
+}
+
+export interface SeasonRecord {
+  seasonNumber: number;
+  mode: "TOURNAMENT" | "LEAGUE";
+  startBalance: number;
+  endBalance: number;
+  netProfit: number;
+  totalBetsPlaced: number;
+  totalBetsWon: number;
+  winRate: number;
+  biggestWin: number;
+  completedAt: string; // ISO date string
+  champion?: string; // team name that won the tournament/league
+}
+
+export interface CareerProfile {
+  totalSeasonsPlayed: number;
+  allTimeProfit: number;
+  allTimeWinRate: number;
+  bestSeason: SeasonRecord | null;
+  records: SeasonRecord[];
+  prestigeLevel: number; // floor(totalSeasonsPlayed / 3)
+  prestigeTitle: string; // "Amateur" -> "Pro" -> "Elite" -> "Legend"
 }
 
 export interface AuctionListing {

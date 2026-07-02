@@ -29,6 +29,7 @@ import { WalletModal } from "./components/modals/WalletModal";
 import { WinnerCelebrationModal } from "./components/modals/WinnerCelebrationModal";
 import { GlobalEntityPreviewModal } from "./components/modals/GlobalEntityPreviewModal";
 import { OwnerRevenueModal } from "./components/modals/OwnerRevenueModal";
+import { MatchHighlightsModal } from "./components/modals/MatchHighlightsModal";
 
 import {
   initializeNewTournament,
@@ -43,6 +44,11 @@ import { useSimulation } from "./hooks/useSimulation";
 import { useBetting } from "./hooks/useBetting";
 import { buildHandleAdvanceRound } from "./hooks/useRoundAdvance";
 import { useTransferMarket } from "./hooks/useTransferMarket";
+import { useChallenges } from "./hooks/useChallenges";
+import { Challenges } from "./components/Challenges";
+import { CareerStats } from "./components/CareerStats";
+import { loadCareerProfile } from "./utils/careerUtils";
+import { CareerProfile } from "./types";
 import { ToastContainer } from "./components/ui/Toast";
 
 
@@ -66,6 +72,8 @@ export default function App() {
   } | null>(null);
   const [betBuilderFixtureId, setBetBuilderFixtureId] = useState<string | null>(null);
   const [globalEntity, setGlobalEntity] = useState<{ type: "team" | "player"; id: string } | null>(null);
+  const [showHighlightsFixture, setShowHighlightsFixture] = useState<Fixture | null>(null);
+  const [careerProfile, setCareerProfile] = useState<CareerProfile>(() => loadCareerProfile());
   const [selectedFixtureId, setSelectedFixtureId] = useState<string>(() =>
     localStorage.getItem("lastSelectedFixtureId") || "",
   );
@@ -85,9 +93,13 @@ export default function App() {
     useTransferMarket(userProfile);
 
   const simHook = useSimulation({
-    teams, userProfile, gameMode, activeSlot, setFixtures, setActiveTab,
+    teams, userProfile, gameMode, activeSlot, fixtures, setFixtures, setActiveTab,
   });
   const { isSimulating, setIsSimulating, ticks, setTicks, simTimerRef } = simHook;
+
+  const challengesHook = useChallenges({
+    userProfile, setUserProfile, persist,
+  });
 
   const bettingHook = useBetting({
     userProfile, setUserProfile, fixtures, teams, tipsters, tipsterTickets,
@@ -111,6 +123,23 @@ export default function App() {
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, []);
+
+  // ─── Highlights modal events ───────────────────────────────────────
+  useEffect(() => {
+    const handleOpenHighlights = (e: Event) => {
+      const ev = e as CustomEvent<{ fixtureId: string }>;
+      if (!ev.detail) return;
+      const fx = fixtures.find(f => f.id === ev.detail.fixtureId);
+      if (fx) setShowHighlightsFixture(fx);
+    };
+    window.addEventListener("open-highlights", handleOpenHighlights);
+    return () => window.removeEventListener("open-highlights", handleOpenHighlights);
+  }, [fixtures]);
+
+  // Reload career stats whenever a season concludes
+  useEffect(() => {
+    if (showWinnerCelebration) setCareerProfile(loadCareerProfile());
+  }, [showWinnerCelebration]);
 
   useEffect(() => {
     if (selectedFixtureId) localStorage.setItem("lastSelectedFixtureId", selectedFixtureId);
@@ -311,7 +340,7 @@ export default function App() {
       });
       return { name: sorted[0].name, crest: sorted[0] };
     }
-    const fin = fixtures.find(f => f.roundIndex === 3) || fixtures.find(f => f.roundIndex === 4);
+    const fin = fixtures.find(f => f.roundIndex === 4 && f.status === "FT") || fixtures.find(f => f.roundIndex === 4);
     if (!fin) return { name: "Champion", crest: teams[0] };
     const winnerId = fin.homeScore > fin.awayScore ? fin.homeTeamId : fin.awayTeamId;
     const club = teams.find(t => t.id === winnerId) || teams[0];
@@ -429,6 +458,15 @@ export default function App() {
             <MyBets
               tickets={userProfile.tickets} fixtures={fixtures} teams={teams}
               balance={userProfile.balance} onCashOut={bettingHook.handleCashOut}
+              betBuilderTickets={userProfile.betBuilderTickets || []}
+              challengesSlot={
+                <Challenges
+                  challenges={challengesHook.activeChallenges}
+                  currentRoundIndex={userProfile.currentRoundIndex}
+                  onClaim={challengesHook.handleClaimChallenge}
+                  onDismiss={challengesHook.handleDismissChallenge}
+                />
+              }
             />
           )}
           {activeTab === "teams" && <TeamsList teams={teams} fixtures={fixtures} />}
@@ -440,6 +478,7 @@ export default function App() {
               ? <LeagueStandings teams={teams} fixtures={fixtures} currentRoundIndex={userProfile.currentRoundIndex} />
               : <TournamentBracket fixtures={fixtures} teams={teams} />
           )}
+          {activeTab === "career" && <CareerStats career={careerProfile} />}
           {activeTab === "leaderboard" && (
             <Leaderboard
               tipsters={tipsters} userBalance={userProfile.balance}
@@ -562,6 +601,13 @@ export default function App() {
           />
         ) : null;
       })()}
+      {showHighlightsFixture && (
+        <MatchHighlightsModal
+          fixture={showHighlightsFixture}
+          teams={teams}
+          onClose={() => setShowHighlightsFixture(null)}
+        />
+      )}
       <ToastContainer />
     </div>
   );

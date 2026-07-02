@@ -14,6 +14,9 @@ import { resolveTransferAuctions, applyTransferResultsToTeams } from "../engine/
 import { settleBetBuilderTicket } from "../utils/betBuilderUtils";
 import { calculateMOTM } from "../utils/motmUtils";
 import { addToast } from "../hooks/useToast";
+import { evaluateChallenges } from "../data/challenges";
+import { recordSeasonEnd } from "../utils/careerUtils";
+import { settlePendingTickets } from "../utils/betSettlement";
 
 interface UseRoundAdvanceDeps {
   gameMode: "TOURNAMENT" | "LEAGUE" | null;
@@ -120,76 +123,16 @@ export function buildHandleAdvanceRound(deps: UseRoundAdvanceDeps) {
     }
 
     // 2. Evaluate user pending tickets
-    let totalWinPayoutSum = 0;
-    const finalTickets = userProfile.tickets.map((ticket) => {
-      if (ticket.status !== "PENDING") return ticket;
-
-      let wonAll = true;
-      ticket.selections.forEach((sel) => {
-        const match = completedFixtures.find((f) => f.id === sel.fixtureId);
-        if (!match) { wonAll = false; return; }
-
-        const hScore = Math.floor(match.homeScore);
-        const aScore = Math.floor(match.awayScore);
-
-        if (sel.marketType === "MATCH_WINNER") {
-          const outcome = hScore > aScore ? "HOME" : aScore > hScore ? "AWAY" : "DRAW";
-          if (sel.selectionId !== outcome) wonAll = false;
-        } else if (sel.marketType === "DOUBLE_CHANCE") {
-          const outcome = hScore > aScore ? "HOME" : aScore > hScore ? "AWAY" : "DRAW";
-          if (sel.selectionId === "HOME_OR_DRAW" && outcome === "AWAY") wonAll = false;
-          if (sel.selectionId === "HOME_OR_AWAY" && outcome === "DRAW") wonAll = false;
-          if (sel.selectionId === "DRAW_OR_AWAY" && outcome === "HOME") wonAll = false;
-        } else if (sel.marketType === "BOTH_TEAMS_TO_SCORE") {
-          const bothScored = hScore > 0 && aScore > 0;
-          if (sel.selectionId === "YES" && !bothScored) wonAll = false;
-          if (sel.selectionId === "NO" && bothScored) wonAll = false;
-        } else if (sel.marketType === "OVER_UNDER_GOALS") {
-          const totalGoals = hScore + aScore;
-          const [mode, lineStr] = sel.selectionId.split("_");
-          const line = parseFloat(lineStr.replace("_", "."));
-          if (mode === "OVER" && totalGoals <= line) wonAll = false;
-          if (mode === "UNDER" && totalGoals >= line) wonAll = false;
-        } else if (sel.marketType === "OVER_UNDER_CORNERS") {
-          const totalCorners = (match.stats?.home.corners || 0) + (match.stats?.away.corners || 0);
-          const [mode, lineStr] = sel.selectionId.split("_");
-          const line = parseFloat((lineStr || "0").replace("_", "."));
-          if (mode === "OVER" && totalCorners <= line) wonAll = false;
-          if (mode === "UNDER" && totalCorners >= line) wonAll = false;
-        } else if (sel.marketType === "OVER_UNDER_CARDS") {
-          const totalCards =
-            (match.stats?.home.yellowCards || 0) + (match.stats?.home.redCards || 0) +
-            (match.stats?.away.yellowCards || 0) + (match.stats?.away.redCards || 0);
-          const [mode, lineStr] = sel.selectionId.split("_");
-          const line = parseFloat((lineStr || "0").replace("_", "."));
-          if (mode === "OVER" && totalCards <= line) wonAll = false;
-          if (mode === "UNDER" && totalCards >= line) wonAll = false;
-        } else if (sel.marketType === "OVER_UNDER_SAVES") {
-          const totalSaves = (match.stats?.home.saves || 0) + (match.stats?.away.saves || 0);
-          const [mode, lineStr] = sel.selectionId.split("_");
-          const line = parseFloat((lineStr || "0").replace("_", "."));
-          if (mode === "OVER" && totalSaves <= line) wonAll = false;
-          if (mode === "UNDER" && totalSaves >= line) wonAll = false;
-        } else if (sel.marketType === "EXACT_SCORE") {
-          if (sel.selectionId !== `${hScore}-${aScore}`) wonAll = false;
-        } else if (sel.marketType === "ANYTIME_GOALSCORER") {
-          const scored = match.events.some(
-            (ev) => ev.type === "GOAL" && ev.playerId === sel.selectionId,
-          );
-          if (!scored) wonAll = false;
-        }
-      });
-
-      const updatedStatus = wonAll ? ("WON" as const) : ("LOST" as const);
-      if (wonAll) totalWinPayoutSum += ticket.potentialPayout;
-      return { ...ticket, status: updatedStatus };
-    });
+    const { finalTickets, totalWinPayoutSum } = settlePendingTickets(
+      userProfile.tickets,
+      completedFixtures,
+    );
 
     // 2a. Toast won/lost regular tickets
     finalTickets.forEach((ticket, idx) => {
       if (userProfile.tickets[idx]?.status === "PENDING") {
         if (ticket.status === "WON") {
-          addToast({ type: "win", title: "🏆 Ticket Won!", message: `+$${ticket.potentialPayout.toFixed(2)} payout`, duration: 5000 });
+          addToast({ type: "win", title: "🏆 Ticket Won!", message: `+$${(ticket.settledPayout ?? ticket.potentialPayout).toFixed(2)} payout`, duration: 5000 });
         } else if (ticket.status === "LOST") {
           addToast({ type: "loss", title: "Ticket Lost", message: `-$${ticket.stake.toFixed(2)} stake lost`, duration: 3000 });
         }
@@ -220,6 +163,7 @@ export function buildHandleAdvanceRound(deps: UseRoundAdvanceDeps) {
     const isFinalFinished =
       (gameMode === "TOURNAMENT" && currentRoundIndex === 4) || isLeagueCompleted;
 
+    let championName = "Champion";
     let nextRoundIdx = currentRoundIndex;
     let nextFixturesList = [...fixtures];
     let nextTipsterTickets: typeof tipsterTickets = {};
@@ -235,6 +179,13 @@ export function buildHandleAdvanceRound(deps: UseRoundAdvanceDeps) {
       nextTipsterTickets = generateTipsterBetsForRound(updatedTipsters, nextFixturesList, updatedTeamsList);
     } else if (gameMode === "LEAGUE") {
       setShowWinnerCelebration(true);
+      const leagueSorted = [...updatedTeamsList].sort((a, b) => {
+        const pa = a.wonMatches * 3 + a.drawnMatches;
+        const pb = b.wonMatches * 3 + b.drawnMatches;
+        if (pb !== pa) return pb - pa;
+        return (b.goalsScored - b.goalsConceded) - (a.goalsScored - a.goalsConceded);
+      });
+      championName = leagueSorted[0]?.name ?? "Champion";
       const allTeamsWithDivisions = applyRelegationPromotion(
         [...teams, ...updatedTeamsList.filter((ut) => !teams.find((t) => t.id === ut.id))],
         completedFixtures,
@@ -250,6 +201,11 @@ export function buildHandleAdvanceRound(deps: UseRoundAdvanceDeps) {
       nextTipsterTickets = generateTipsterBetsForRound(updatedTipsters, newSeasonFixtures, newSeasonTeams);
     } else {
       setShowWinnerCelebration(true);
+      const finalFx = completedFixtures[completedFixtures.length - 1];
+      if (finalFx) {
+        const winnerId = finalFx.homeScore > finalFx.awayScore ? finalFx.homeTeamId : finalFx.awayTeamId;
+        championName = updatedTeamsList.find((t) => t.id === winnerId)?.name ?? "Champion";
+      }
     }
 
     // 6. Club ownership passive income
@@ -310,11 +266,33 @@ export function buildHandleAdvanceRound(deps: UseRoundAdvanceDeps) {
         (userProfile.balance + totalWinPayoutSum + bbPayoutSum + ownershipRevenue + transferBalanceAdjust) * 100,
       ) / 100;
 
-    const finalNetProfit = finalTickets.reduce((acc, t) => {
-      if (t.status === "WON") return acc + (t.potentialPayout - t.stake);
+    const finalNetProfit = Math.round(finalTickets.reduce((acc, t) => {
+      if (t.status === "WON") return acc + ((t.settledPayout ?? t.potentialPayout) - t.stake);
       if (t.status === "LOST") return acc - t.stake;
+      if (t.status === "CASHED_OUT") return acc + ((t.cashedOutAmount ?? 0) - t.stake);
       return acc;
-    }, 0);
+    }, 0) * 100) / 100;
+
+    // 8. Evaluate betting challenges against this round's settled bets
+    const settledThisRound = finalTickets.filter(
+      (t, idx) => userProfile.tickets[idx]?.status === "PENDING" && t.status !== "PENDING",
+    );
+    const settledBbThisRound = finalBbTickets.filter(
+      (t, idx) => (userProfile.betBuilderTickets || [])[idx]?.status === "PENDING" && t.status !== "PENDING",
+    );
+    const evaluatedChallenges = evaluateChallenges(
+      userProfile.challenges ?? [],
+      settledThisRound,
+      completedFixtures,
+      currentRoundIndex,
+      settledBbThisRound,
+    );
+    evaluatedChallenges.forEach((c) => {
+      const prev = (userProfile.challenges ?? []).find((pc) => pc.id === c.id);
+      if (prev?.status === "ACTIVE" && c.status === "COMPLETED") {
+        addToast({ type: "win", title: "🎯 Challenge Complete!", message: `${c.title} — claim $${c.reward} in My Bets`, duration: 6000 });
+      }
+    });
 
     const nextProfile: Profile = {
       ...userProfile,
@@ -323,7 +301,19 @@ export function buildHandleAdvanceRound(deps: UseRoundAdvanceDeps) {
       tickets: finalTickets,
       betBuilderTickets: finalBbTickets,
       currentRoundIndex: nextRoundIdx,
+      challenges: evaluatedChallenges,
     };
+
+    // 9. Record completed season into career stats (fs_career_v1)
+    if (isFinalFinished && gameMode) {
+      const career = recordSeasonEnd(nextProfile, championName, gameMode);
+      addToast({
+        type: "info",
+        title: "📜 Season Recorded",
+        message: `Career: ${career.totalSeasonsPlayed} seasons • ${career.prestigeTitle}`,
+        duration: 6000,
+      });
+    }
 
     persistStateToCache(gameMode, activeSlot, nextProfile, updatedTeamsList, nextFixturesList, updatedTipsters, nextTipsterTickets);
 

@@ -191,17 +191,27 @@ export function useProfile(deps: UseProfileDeps) {
     persist(nextProfile, nextTeams);
   };
 
-  const handleLiquidateVIPItem = (item: { id: string; worth: number }) => {
+  const handleLiquidateVIPItem = (item: { id: string; worth: number; category?: string }) => {
     if (!userProfile) return;
+    const isClubSale = item.category === "Football Clubs";
+    let nextTeams = teams;
+    if (isClubSale && userProfile.ownedTeamId) {
+      // Strip ownership from the sold club so it can be purchased again
+      nextTeams = teams.map((t) =>
+        t.id === userProfile.ownedTeamId ? { ...t, ownership: undefined } : t,
+      );
+      setTeams(nextTeams);
+    }
     const nextProfile: Profile = {
       ...userProfile,
       balance: userProfile.balance + item.worth,
       purchasedItems: (userProfile.purchasedItems || []).filter(
         (i) => i.id !== item.id,
       ),
+      ownedTeamId: isClubSale ? undefined : userProfile.ownedTeamId,
     };
     setUserProfile(nextProfile);
-    persist(nextProfile);
+    persist(nextProfile, nextTeams);
   };
 
   return {

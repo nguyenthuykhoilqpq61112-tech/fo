@@ -65,6 +65,11 @@ export const LiveMatches: React.FC<LiveMatchesProps> = ({
     window.dispatchEvent(new CustomEvent("open-global-entity", { detail: { type, id } }));
   };
 
+  const triggerOpenHighlights = (fixtureId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    window.dispatchEvent(new CustomEvent("open-highlights", { detail: { fixtureId } }));
+  };
+
   const getTeamName = (id: string, short: boolean = false) => {
     const t = teams.find(team => team.id === id);
     return t ? (short ? t.shortName : t.name) : "Loading";
@@ -468,6 +473,15 @@ export const LiveMatches: React.FC<LiveMatchesProps> = ({
                         </div>
                       ))}
                     </div>
+                  )}
+
+                  {isFT && (
+                    <button
+                      onClick={(e) => triggerOpenHighlights(fixture.id, e)}
+                      className="mt-2 w-full text-[9px] font-black tracking-widest uppercase text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-md py-1 hover:bg-amber-500/20 transition-colors"
+                    >
+                      📋 Highlights
+                    </button>
                   )}
                 </div>
               );

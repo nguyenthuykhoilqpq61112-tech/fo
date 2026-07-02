@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { BetTicket, Fixture, Team, MarketType } from "../types";
+import { BetTicket, BetBuilderTicket, Fixture, Team, MarketType } from "../types";
+import { BetBuilderTicketsList } from "./BetBuilderTicketsList";
 import { calculateCashOutValue, isCashOutEligible, buildCurrentOddsMap } from "../utils/cashOutUtils";
 import { formatMoney } from "../utils";
 
@@ -9,9 +10,11 @@ interface MyBetsProps {
   teams: Team[];
   balance: number;
   onCashOut?: (ticketId: string, offer: number) => void;
+  challengesSlot?: React.ReactNode;
+  betBuilderTickets?: BetBuilderTicket[];
 }
 
-export const MyBets: React.FC<MyBetsProps> = ({ tickets, fixtures, teams, balance, onCashOut }) => {
+export const MyBets: React.FC<MyBetsProps> = ({ tickets, fixtures, teams, balance, onCashOut, challengesSlot, betBuilderTickets = [] }) => {
   const [expandedTicketId, setExpandedTicketId] = useState<string | null>(null);
 
   // Calculate Betting stats
@@ -26,7 +29,7 @@ export const MyBets: React.FC<MyBetsProps> = ({ tickets, fixtures, teams, balanc
   // Calculate total net profit
   const totalNetProfit = tickets.reduce((acc, t) => {
     if (t.status === "WON") {
-      return acc + (t.potentialPayout - t.stake);
+      return acc + ((t.settledPayout ?? t.potentialPayout) - t.stake);
     } else if (t.status === "LOST") {
       return acc - t.stake;
     } else if (t.status === "CASHED_OUT" && t.cashedOutAmount) {
@@ -198,6 +201,7 @@ export const MyBets: React.FC<MyBetsProps> = ({ tickets, fixtures, teams, balanc
 
   return (
     <div className="flex-1 min-height-0 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6 no-scrollbar max-h-none">
+      {challengesSlot}
       
       {/* Title */}
       <div className="border-b border-white/5 pb-3">
@@ -279,7 +283,7 @@ export const MyBets: React.FC<MyBetsProps> = ({ tickets, fixtures, teams, balanc
               const isPending = ticket.status === "PENDING";
               const isCashedOut = ticket.status === "CASHED_OUT";
 
-              let netRet = isWon ? (ticket.potentialPayout - ticket.stake) : isLost ? -ticket.stake : 0;
+              let netRet = isWon ? ((ticket.settledPayout ?? ticket.potentialPayout) - ticket.stake) : isLost ? -ticket.stake : 0;
               if (isCashedOut && ticket.cashedOutAmount) {
                 netRet = ticket.cashedOutAmount - ticket.stake;
               }
@@ -376,6 +380,21 @@ export const MyBets: React.FC<MyBetsProps> = ({ tickets, fixtures, teams, balanc
                       >
                         CASH OUT ${formatMoney(cashOutValue)}
                       </button>
+                    </div>
+                  )}
+                  {coEligible && cashOutValue === null && (
+                    <div className="px-4 py-2.5 flex items-center justify-between border-y bg-slate-500/8 border-white/10">
+                      <div>
+                        <p className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">
+                          ⏸️ Cash Out Temporarily Suspended
+                        </p>
+                        <p className="text-[9px] text-slate-500 font-mono">
+                          A live market on this ticket is suspended — try again in a moment
+                        </p>
+                      </div>
+                      <span className="font-black text-sm px-5 py-1.5 rounded-xl bg-white/5 text-slate-500 select-none">
+                        SUSPENDED
+                      </span>
                     </div>
                   )}
                   {/* Collapsed Selection indicator lines (Displays what teams were bet on when collapsed!) */}
@@ -499,6 +518,9 @@ export const MyBets: React.FC<MyBetsProps> = ({ tickets, fixtures, teams, balanc
           </div>
         )}
       </div>
+
+      {/* Bet Builder tickets log */}
+      <BetBuilderTicketsList tickets={betBuilderTickets} fixtures={fixtures} teams={teams} />
     </div>
   );
 };
