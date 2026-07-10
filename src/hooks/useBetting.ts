@@ -13,6 +13,7 @@ import { persistStateToCache } from "../utils/storage";
 import { credit, debit, round2 } from "../utils/wallet";
 import { computeAccaOdds } from "../utils/betBuilderUtils";
 import { addToast } from "../hooks/useToast";
+import { cashOutOnServer, placeBetOnServer, saveGameState } from "../api/serverApi";
 
 interface UseBettingDeps {
   userProfile: Profile | null;
@@ -136,7 +137,7 @@ export function useBetting(deps: UseBettingDeps) {
 
   const handleClearAllSelections = () => setSelectedBets([]);
 
-  const handlePlaceBet = (
+  const handlePlaceBet = async (
     type: "SINGLE" | "ACCUMULATOR",
     totalStake: number,
     selectionStakes?: { [secId: string]: number },
@@ -183,6 +184,25 @@ export function useBetting(deps: UseBettingDeps) {
       selectionStakes,
     };
 
+    if (gameMode) {
+      try {
+        await saveGameState(gameMode, activeSlot, {
+          profile: userProfile,
+          teams,
+          fixtures,
+          tipsters,
+          tipsterTickets,
+        });
+        const {profile: serverProfile} = await placeBetOnServer(gameMode, activeSlot, newTicket);
+        setUserProfile(serverProfile);
+        setSelectedBets([]);
+        persist(serverProfile);
+      } catch (err) {
+        alert((err as Error).message || "Unable to place bet on server.");
+      }
+      return;
+    }
+
     const nextBalance = debited;
     const nextProfile: Profile = {
       ...userProfile,
@@ -195,10 +215,29 @@ export function useBetting(deps: UseBettingDeps) {
     persist(nextProfile);
   };
 
-  const handleCashOut = (ticketId: string, offerAmount: number) => {
+  const handleCashOut = async (ticketId: string, offerAmount: number) => {
     if (!userProfile) return;
     const target = userProfile.tickets.find((t) => t.id === ticketId);
     if (!target || target.status !== "PENDING") return; // guard against double cash-out
+    if (gameMode) {
+      try {
+        await saveGameState(gameMode, activeSlot, {
+          profile: userProfile,
+          teams,
+          fixtures,
+          tipsters,
+          tipsterTickets,
+        });
+        const {profile: serverProfile} = await cashOutOnServer(gameMode, activeSlot, ticketId, offerAmount);
+        addToast({ type: "cashout", title: "💸 Cashed Out", message: `$${offerAmount.toFixed(2)} added to wallet`, duration: 4000 });
+        setUserProfile(serverProfile);
+        persist(serverProfile);
+      } catch (err) {
+        alert((err as Error).message || "Unable to cash out on server.");
+      }
+      return;
+    }
+
     const nextTickets = userProfile.tickets.map((t) =>
       t.id === ticketId && t.status === "PENDING"
         ? { ...t, status: "CASHED_OUT" as const, cashedOutAmount: offerAmount, cashedOutRound: userProfile.currentRoundIndex }
@@ -215,12 +254,12 @@ export function useBetting(deps: UseBettingDeps) {
     persist(nextProfile);
   };
 
-  const handlePlaceBetBuilder = (
+  const handlePlaceBetBuilder = async (
     fixtureId: string,
     selections: BetBuilderSelection[],
     stake: number,
     combinedOdds: number,
-  ): boolean => {
+  ): Promise<boolean> => {
     if (!userProfile) return false;
     const bbDebited = debit(userProfile.balance, stake);
     if (bbDebited === null) return false;
@@ -243,6 +282,25 @@ export function useBetting(deps: UseBettingDeps) {
       status: "PENDING",
       timestamp: Date.now(),
     };
+    if (gameMode) {
+      try {
+        await saveGameState(gameMode, activeSlot, {
+          profile: userProfile,
+          teams,
+          fixtures,
+          tipsters,
+          tipsterTickets,
+        });
+        const {profile: serverProfile} = await placeBetOnServer(gameMode, activeSlot, ticket);
+        setUserProfile(serverProfile);
+        persist(serverProfile);
+        return true;
+      } catch (err) {
+        alert((err as Error).message || "Unable to place bet builder on server.");
+        return false;
+      }
+    }
+
     const nextProfile = {
       ...userProfile,
       balance: bbDebited,
