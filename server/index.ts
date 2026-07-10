@@ -6,7 +6,8 @@ import {getWorldCupLiveMatches} from './worldCup2026.ts';
 
 type AuthedRequest = Request & { user?: { id: string; username: string } };
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const distDir = path.resolve(__dirname, '..', 'dist');
+const isBundledServer = path.basename(__dirname) === 'server' && path.basename(path.dirname(__dirname)) === 'dist';
+const distDir = isBundledServer ? path.dirname(__dirname) : path.resolve(__dirname, '..', 'dist');
 
 const app = express();
 const db: AppDb = await openDatabase();
