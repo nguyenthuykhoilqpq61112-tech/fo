@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Tv, Calendar, Ticket, Users, BarChart3, Trophy, Award, Plus, RotateCcw, Activity, LogOut, Gamepad2, MessageSquare, ShieldCheck, ArrowLeftRight } from "lucide-react";
+import { Tv, Calendar, Ticket, Users, BarChart3, Trophy, Award, Plus, RotateCcw, Activity, LogOut, Gamepad2, MessageSquare, ShieldCheck, ArrowLeftRight, Globe2 } from "lucide-react";
 
 interface HeaderProps {
   activeTab: string;
@@ -28,6 +28,7 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const tabs = [
+    { id: "worldcup", label: "World Cup 2026", icon: <Globe2 size={14} className="text-emerald-300" /> },
     { id: "live", label: "Live", icon: <Tv size={14} className="opacity-85" /> },
     { id: "fixtures", label: "Fixtures & Odds", icon: <Calendar size={14} className="opacity-85" /> },
     { id: "bets", label: "My Bets", icon: <Ticket size={14} className="opacity-85" /> },
@@ -50,10 +51,10 @@ export const Header: React.FC<HeaderProps> = ({
         <Activity size={20} className="animate-pulse text-emerald-400" />
         <div className="hidden sm:block">
           <h1 className="text-sm font-black tracking-wider uppercase text-emerald-400 font-sans leading-none">
-            CU Bet
+            WorldCup Bet
           </h1>
           <p className="text-[10px] text-slate-400 font-mono tracking-widest leading-none mt-1">
-            {gameMode === "LEAGUE" ? "LEAGUE CAMPAIGN" : "TOURNAMENT ENGINE"}
+            WORLD CUP 2026 LIVE
           </p>
         </div>
       </div>

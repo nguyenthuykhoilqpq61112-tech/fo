@@ -30,6 +30,7 @@ import { WinnerCelebrationModal } from "./components/modals/WinnerCelebrationMod
 import { GlobalEntityPreviewModal } from "./components/modals/GlobalEntityPreviewModal";
 import { OwnerRevenueModal } from "./components/modals/OwnerRevenueModal";
 import { MatchHighlightsModal } from "./components/modals/MatchHighlightsModal";
+import { WorldCupLiveHub } from "./components/WorldCupLiveHub";
 
 import {
   initializeNewTournament,
@@ -50,9 +51,10 @@ import { CareerStats } from "./components/CareerStats";
 import { loadCareerProfile } from "./utils/careerUtils";
 import { CareerProfile } from "./types";
 import { ToastContainer } from "./components/ui/Toast";
+import { AuthSession, saveGameState } from "./api/serverApi";
 
 
-export default function App() {
+export default function App({ authSession }: { authSession: AuthSession }) {
   const [activeSlot, setActiveSlot] = useState<number>(() =>
     parseInt(localStorage.getItem("fs_selected_game_slot") || "1"),
   );
@@ -106,6 +108,23 @@ export default function App() {
     gameMode, activeSlot, setCollapsedSlip,
   });
   const { selectedBets, setSelectedBets } = bettingHook;
+
+
+  // Mirror the active save to the authenticated server database. localStorage remains
+  // a fast offline cache, but the durable copy now lives behind the account API.
+  useEffect(() => {
+    if (!gameMode || !userProfile || teams.length === 0 || fixtures.length === 0) return;
+    const timer = window.setTimeout(() => {
+      saveGameState(gameMode, activeSlot, {
+        profile: userProfile,
+        teams,
+        fixtures,
+        tipsters,
+        tipsterTickets,
+      }).catch((err) => console.error("Failed to sync save to server", err));
+    }, 600);
+    return () => window.clearTimeout(timer);
+  }, [gameMode, activeSlot, userProfile, teams, fixtures, tipsters, tipsterTickets]);
 
   // ─── Global entity modal events ────────────────────────────────────
   useEffect(() => {
@@ -210,7 +229,7 @@ export default function App() {
     const { teams: newTeams, fixtures: newFixtures } =
       gameMode === "TOURNAMENT" ? initializeNewTournament() : initializeNewLeague();
     const initialProfile: Profile = {
-      username: userProfile?.username || "Tobi",
+      username: userProfile?.username || authSession.user.username || "Tobi",
       balance: keepRecords ? (userProfile?.balance ?? 1000) : 1000,
       netProfit: keepRecords ? (userProfile?.netProfit ?? 0) : 0,
       tickets: keepRecords ? (userProfile?.tickets ?? []) : [],
@@ -245,7 +264,7 @@ export default function App() {
     localStorage.setItem("fs_selected_game_slot", String(slot));
     const { teams: newTeams, fixtures: newFixtures } =
       mode === "TOURNAMENT" ? initializeNewTournament() : initializeNewLeague();
-    const initialProfile: Profile = { username, balance: startingBalance, netProfit: 0, tickets: [], currentRoundIndex: 0, createdTime: Date.now() };
+    const initialProfile: Profile = { username: username || authSession.user.username, balance: startingBalance, netProfit: 0, tickets: [], currentRoundIndex: 0, createdTime: Date.now() };
     const ts = [...INITIAL_TIPSTERS];
     const tk = generateTipsterBetsForRound(ts, newFixtures, newTeams);
     const keys = getKeysForMode(mode, slot);
@@ -309,9 +328,9 @@ export default function App() {
 
 
   // ─── Bet Builder placement ────────────────────────────────────────
-  const handleBBPlace = (sels: BetBuilderSelection[], stake: number, odds: number) => {
+  const handleBBPlace = async (sels: BetBuilderSelection[], stake: number, odds: number) => {
     if (!betBuilderFixtureId) return;
-    if (bettingHook.handlePlaceBetBuilder(betBuilderFixtureId, sels, stake, odds)) {
+    if (await bettingHook.handlePlaceBetBuilder(betBuilderFixtureId, sels, stake, odds)) {
       setBetBuilderFixtureId(null);
     }
   };
@@ -423,6 +442,7 @@ export default function App() {
 
       <div id="workspace-split" className="flex flex-1 min-h-0 overflow-hidden relative">
         <main className="flex-1 min-h-0 flex flex-col overflow-hidden bg-transparent">
+          {activeTab === "worldcup" && <WorldCupLiveHub />}
           {activeTab === "live" && (
             <LiveMatches
               fixtures={fixtures} teams={teams}
@@ -535,7 +555,7 @@ export default function App() {
           )}
         </main>
 
-        {!["casino","store","feed","myclub","transfers"].includes(activeTab) && (
+        {!["casino","store","feed","myclub","transfers","worldcup"].includes(activeTab) && (
           <BettingSlip
             selections={selectedBets} fixtures={fixtures} teams={teams}
             onRemoveSelection={bettingHook.handleRemoveSelection}
