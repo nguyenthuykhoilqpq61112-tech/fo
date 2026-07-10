@@ -34,6 +34,7 @@ Environment variables:
 
 - `DATABASE_URL` — SQLite path, for example `sqlite:./data/app.sqlite`.
 - `PORT` — server port, defaults to `3000`.
+- `WORLD_CUP_2026_FEED_URL` — optional JSON feed for live World Cup 2026 matches; when unset, the server uses bundled fallback fixtures so deployments remain testable.
 
 The browser still keeps a local cache for quick reloads, but authenticated game state is mirrored to the server database through `/api/game-state/:mode/:slot`. Wallet movements and bet tickets can be recorded through the server audit endpoints.
 

@@ -116,6 +116,11 @@ async function assertApiLoop() {
   const me = await request('/api/auth/me', {headers: auth});
   if (me.user.username !== username) throw new Error('/api/auth/me returned wrong user');
 
+  const worldCup = await request('/api/world-cup/live', {headers: auth});
+  if (!Array.isArray(worldCup.matches) || worldCup.matches.length === 0) {
+    throw new Error('/api/world-cup/live did not return matches');
+  }
+
   const initialState = {
     profile: {username, balance: 100, tickets: [], currentRoundIndex: 0, netProfit: 0, createdTime: 1},
     teams: [],
@@ -161,6 +166,7 @@ async function assertApiLoop() {
   if (cashed.profile.balance !== 85 || cashed.profile.tickets[0].status !== 'CASHED_OUT') {
     throw new Error('server-authoritative cash-out did not update balance/ticket');
   }
+  log('world cup live, auth, save, place bet, and cash-out APIs passed');
   log('auth, save, place bet, and cash-out APIs passed');
 }
 

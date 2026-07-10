@@ -2,6 +2,7 @@ import express, {type Request, type Response, type NextFunction} from 'express';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {openDatabase, hashPassword, verifyPassword, newId, type AppDb} from './database.ts';
+import {getWorldCupLiveMatches} from './worldCup2026.ts';
 
 type AuthedRequest = Request & { user?: { id: string; username: string } };
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -99,6 +100,15 @@ app.post('/api/auth/login', async (req, res) => {
   const token = newId('session');
   await db.run("INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, datetime('now', '+30 days'))", token, user.id);
   res.json({token, user: {id: user.id, username: user.username}});
+});
+
+
+app.get('/api/world-cup/live', async (_req, res) => {
+  try {
+    res.json(await getWorldCupLiveMatches());
+  } catch (err) {
+    sendError(res, 502, (err as Error).message || 'Unable to load World Cup live feed');
+  }
 });
 
 app.get('/api/auth/me', requireAuth, (req: AuthedRequest, res) => res.json({user: req.user}));

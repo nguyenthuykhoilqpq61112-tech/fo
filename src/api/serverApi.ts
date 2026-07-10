@@ -5,6 +5,29 @@ const USER_KEY = 'fs_auth_user';
 
 export interface AuthUser { id: string; username: string }
 export interface AuthSession { token: string; user: AuthUser }
+export interface WorldCupLiveMatch {
+  id: string;
+  stage: string;
+  home: string;
+  away: string;
+  venue: string;
+  city: string;
+  kickoffUtc: string;
+  status: 'SCHEDULED' | 'LIVE' | 'FT';
+  minute?: number;
+  homeScore?: number;
+  awayScore?: number;
+  odds: {home: number; draw: number; away: number};
+  marketOpen: boolean;
+  source: 'fallback' | 'external';
+}
+
+export interface WorldCupLivePayload {
+  source: string;
+  updatedAt: string;
+  matches: WorldCupLiveMatch[];
+}
+
 export interface PersistedGameState {
   profile: Profile;
   teams: Team[];
@@ -75,4 +98,8 @@ export async function cashOutOnServer(mode: 'TOURNAMENT' | 'LEAGUE', slot: numbe
 
 export async function auditBet(mode: 'TOURNAMENT' | 'LEAGUE', slot: number, ticket: BetTicket) {
   return api<{id: string}>(`/api/bets/audit`, {method: 'POST', body: JSON.stringify({mode, slot, ticket})});
+}
+
+export async function fetchWorldCupLive() {
+  return api<WorldCupLivePayload>('/api/world-cup/live');
 }
