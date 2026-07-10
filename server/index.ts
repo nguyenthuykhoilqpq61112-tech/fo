@@ -1,4 +1,5 @@
 import {getWorldCupLiveMatches} from './worldCup2026.ts';
+import {staticAssets} from './staticManifest.ts';
 
 type User = {id: string; username: string; passwordHash: string};
 type Session = {userId: string; username: string; expiresAt: number};
@@ -247,6 +248,15 @@ async function handleApi(request: Request, url: URL) {
 }
 
 async function serveLocalStatic(url: URL) {
+  const pathname = url.pathname === '/' ? '/' : url.pathname;
+  const asset = staticAssets[pathname] || staticAssets['/index.html'];
+  if (asset) {
+    const body = asset.encoding === 'base64'
+      ? Uint8Array.from(atob(asset.body), (char) => char.charCodeAt(0))
+      : asset.body;
+    return new Response(body, {headers: {'content-type': asset.contentType}});
+  }
+
   const [{readFile}, path, {fileURLToPath}] = await Promise.all([
     import('node:fs/promises'),
     import('node:path'),
