@@ -167,6 +167,7 @@ async function assertApiLoop() {
     throw new Error('server-authoritative cash-out did not update balance/ticket');
   }
   log('world cup live, auth, save, place bet, and cash-out APIs passed');
+  log('auth, save, place bet, and cash-out APIs passed');
 }
 
 async function main() {
