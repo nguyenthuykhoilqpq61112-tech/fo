@@ -9,7 +9,10 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "test": "tsx tests/logic.test.ts && tsx tests/casino.test.ts"
+    "test": "tsx tests/logic.test.ts && tsx tests/casino.test.ts",
+    "server": "tsx server/index.ts",
+    "start": "node --enable-source-maps --import tsx server/index.ts",
+    "test:fullstack": "node scripts/fullstack-smoke.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
@@ -24,6 +27,8 @@
     "react-dom": "^19.0.1",
     "recharts": "^3.8.1",
     "redux": "^5.0.1",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^6.0.1",
     "vite": "^6.2.3"
   },
   "devDependencies": {
