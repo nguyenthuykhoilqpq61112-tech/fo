@@ -18,6 +18,7 @@ const sessions = new Map<string, Session>();
 const gameStates = new Map<string, GameState>();
 const walletLedger: unknown[] = [];
 const betAudit: unknown[] = [];
+let adminSeedPromise: Promise<void> | null = null;
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -78,6 +79,25 @@ async function verifyPassword(password: string, stored: string) {
   return (await hashPassword(password, salt)) === stored;
 }
 
+function ensureConfiguredAdmin() {
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  if (!adminPassword) return Promise.resolve();
+
+  if (!adminSeedPromise) {
+    adminSeedPromise = (async () => {
+      const username = process.env.ADMIN_USERNAME || 'admin';
+      if (usersByUsername.has(username)) return;
+      usersByUsername.set(username, {
+        id: newId('user'),
+        username,
+        passwordHash: await hashPassword(adminPassword),
+      });
+    })();
+  }
+
+  return adminSeedPromise;
+}
+
 function stateKey(userId: string, mode: string, slot: number) {
   return `${userId}:${mode}:${slot}`;
 }
@@ -112,6 +132,7 @@ function requireAuth(request: Request): Authed | Response {
 }
 
 async function handleApi(request: Request, url: URL) {
+  await ensureConfiguredAdmin();
   const body = await readBody(request) as Record<string, unknown>;
 
   if (url.pathname === '/api/auth/register' && request.method === 'POST') {
