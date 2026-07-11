@@ -60,7 +60,7 @@ export function WorldCupLiveHub() {
               Real-time match board, prices, and market status
             </h2>
             <p className="mt-2 text-sm text-slate-400 max-w-3xl">
-              Matches refresh every 15 seconds. Connect <code className="text-emerald-300">WORLD_CUP_2026_FEED_URL</code> on the server for an official/paid live data feed; otherwise the site uses the bundled World Cup 2026 fallback board for deployment testing.
+              Matches refresh every 15 seconds from the live World Cup feed. Set <code className="text-emerald-300">WORLD_CUP_2026_FEED_URL</code> to override the default ESPN scoreboard source.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">

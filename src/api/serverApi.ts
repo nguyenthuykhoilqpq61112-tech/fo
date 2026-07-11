@@ -19,7 +19,7 @@ export interface WorldCupLiveMatch {
   awayScore?: number;
   odds: {home: number; draw: number; away: number};
   marketOpen: boolean;
-  source: 'fallback' | 'external';
+  source: 'fallback' | 'external' | 'espn';
 }
 
 export interface WorldCupLivePayload {

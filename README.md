@@ -34,7 +34,9 @@ Environment variables:
 
 - `DATABASE_URL` — SQLite path, for example `sqlite:./data/app.sqlite`.
 - `PORT` — server port, defaults to `3000`.
-- `WORLD_CUP_2026_FEED_URL` — optional JSON feed for live World Cup 2026 matches; when unset, the server uses bundled fallback fixtures so deployments remain testable.
+- `WORLD_CUP_2026_FEED_URL` — optional custom JSON feed for live World Cup 2026 matches. When unset, the server uses ESPN's FIFA World Cup scoreboard and falls back to bundled fixtures only if the live feed fails.
+- `WORLD_CUP_2026_ESPN_DATES` — optional ESPN date range in `YYYYMMDD-YYYYMMDD` format. When unset, the server fetches a rolling window from 2 days ago through 8 days ahead.
+- `WORLD_CUP_2026_DISABLE_ESPN` — set to `true` to skip ESPN and use only a custom feed or fallback fixtures.
 
 The browser still keeps a local cache for quick reloads, but authenticated game state is mirrored to the server database through `/api/game-state/:mode/:slot`. Wallet movements and bet tickets can be recorded through the server audit endpoints.
 

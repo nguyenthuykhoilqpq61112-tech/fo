@@ -22,7 +22,7 @@ const betAudit: unknown[] = [];
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: {'content-type': 'application/json; charset=utf-8'},
+    headers: {'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store'},
   });
 }
 
