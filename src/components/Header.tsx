@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Tv, Calendar, Ticket, Users, BarChart3, Trophy, Award, Plus, RotateCcw, Activity, LogOut, Gamepad2, MessageSquare, ShieldCheck, ArrowLeftRight, Globe2 } from "lucide-react";
+import { Tv, Calendar, Ticket, Users, BarChart3, Trophy, Award, Plus, RotateCcw, Activity, LogOut, Gamepad2, MessageSquare, ShieldCheck, ArrowLeftRight, Globe2, ChevronDown } from "lucide-react";
 
 interface HeaderProps {
   activeTab: string;
@@ -27,10 +27,17 @@ export const Header: React.FC<HeaderProps> = ({
   hasOwnedClub = false,
 }) => {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const tabs = [
-    { id: "worldcup", label: "World Cup 2026", icon: <Globe2 size={14} className="text-emerald-300" /> },
+  const esportsTabs = [
     { id: "live", label: "Live", icon: <Tv size={14} className="opacity-85" /> },
     { id: "fixtures", label: "Fixtures & Odds", icon: <Calendar size={14} className="opacity-85" /> },
+    { id: "tournament", label: gameMode === "LEAGUE" ? "Standings" : "Tournament", icon: <Trophy size={14} className="opacity-85" /> },
+  ];
+  const worldCupTabs = [
+    { id: "worldcup-live", label: "Live", icon: <Tv size={14} className="opacity-85" /> },
+    { id: "worldcup-fixtures", label: "Fixtures & Odds", icon: <Calendar size={14} className="opacity-85" /> },
+    { id: "worldcup-tournament", label: "Tournament", icon: <Trophy size={14} className="opacity-85" /> },
+  ];
+  const tabs = [
     { id: "bets", label: "My Bets", icon: <Ticket size={14} className="opacity-85" /> },
     { id: "feed", label: "Fan Feed", icon: <MessageSquare size={14} className="opacity-85" /> },
     { id: "store", label: "VIP Store", icon: <div className="text-amber-500 font-bold">🛒</div> },
@@ -39,29 +46,95 @@ export const Header: React.FC<HeaderProps> = ({
     ...(hasOwnedClub ? [{ id: "transfers", label: "Transfers", icon: <ArrowLeftRight size={14} className="text-sky-400" /> }] : []),
     { id: "teams", label: "Teams", icon: <Users size={14} className="opacity-85" /> },
     { id: "analytics", label: "Analytics", icon: <BarChart3 size={14} className="opacity-85" /> },
-    { id: "tournament", label: gameMode === "LEAGUE" ? "Standings" : "Tournament", icon: <Trophy size={14} className="opacity-85" /> },
     { id: "leaderboard", label: "Leaderboard", icon: <Award size={14} className="opacity-85" /> },
     { id: "career", label: "Career", icon: <div className="text-yellow-400 font-bold">🏅</div> }
   ];
+  const esportsActive = esportsTabs.some((tab) => tab.id === activeTab);
+  const worldCupActive = worldCupTabs.some((tab) => tab.id === activeTab) || activeTab === "worldcup";
+
+  const DropdownGroup = ({
+    label,
+    icon,
+    items,
+    active,
+    title,
+  }: {
+    label: string;
+    icon: React.ReactNode;
+    items: typeof esportsTabs;
+    active: boolean;
+    title: string;
+  }) => (
+    <div className="relative group shrink-0">
+      <button
+        type="button"
+        onClick={() => setActiveTab(items[0].id)}
+        title={title}
+        className={`flex items-center gap-1.5 px-2 md:px-3 py-2 md:py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all duration-200 cursor-pointer min-w-[36px] min-h-[36px] justify-center md:justify-start ${
+          active
+            ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-semibold shadow-[0_0_12px_rgba(16,185,129,0.15)]"
+            : "text-slate-300 hover:bg-white/5 hover:text-white border border-transparent"
+        }`}
+      >
+        <span className="shrink-0">{icon}</span>
+        <span className="hidden md:inline">{label}</span>
+        <ChevronDown size={12} className="opacity-80" />
+      </button>
+      <div className="absolute left-0 top-full hidden group-hover:block group-focus-within:block pt-2 z-50">
+        <div className="min-w-[190px] rounded-xl border border-white/10 bg-slate-950/95 shadow-2xl backdrop-blur p-1">
+          {items.map((item) => {
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setActiveTab(item.id)}
+                className={`w-full flex items-center gap-2 rounded-lg px-3 py-2 text-left text-xs transition-colors ${
+                  isActive ? "bg-emerald-500/15 text-emerald-300" : "text-slate-300 hover:bg-white/5 hover:text-white"
+                }`}
+              >
+                {item.icon}
+                <span className="font-bold">{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <header className="glass-panel border-x-0 border-t-0 rounded-none h-16 px-4 md:px-6 flex items-center justify-between select-none shrink-0 z-40">
       {/* Brand logo */}
-      <div className="flex items-center gap-3">
+      <button type="button" onClick={exitToMenu} className="flex items-center gap-3 cursor-pointer hover:opacity-85 transition-opacity" title="Go to home">
         <Activity size={20} className="animate-pulse text-emerald-400" />
         <div className="hidden sm:block">
           <h1 className="text-sm font-black tracking-wider uppercase text-emerald-400 font-sans leading-none">
-            WorldCup Bet
+            win-worldcup
           </h1>
           <p className="text-[10px] text-slate-400 font-mono tracking-widest leading-none mt-1">
             WORLD CUP 2026 LIVE
           </p>
         </div>
-      </div>
+      </button>
 
       {/* Navigation tabs */}
       <nav className="flex items-center overflow-x-auto no-scrollbar max-w-[45%] sm:max-w-[55%] md:max-w-none h-full mx-2">
         <div className="flex items-center gap-0.5 md:gap-1">
+          <DropdownGroup
+            label="Esports"
+            title="Esports pages"
+            icon={<Gamepad2 size={14} className="opacity-85" />}
+            items={esportsTabs}
+            active={esportsActive}
+          />
+          <DropdownGroup
+            label="World Cup"
+            title="World Cup 2026 pages"
+            icon={<Globe2 size={14} className="text-emerald-300" />}
+            items={worldCupTabs}
+            active={worldCupActive}
+          />
           {tabs.map(tab => {
             const isActive = activeTab === tab.id;
             return (

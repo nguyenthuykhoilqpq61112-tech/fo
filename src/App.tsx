@@ -31,6 +31,8 @@ import { GlobalEntityPreviewModal } from "./components/modals/GlobalEntityPrevie
 import { OwnerRevenueModal } from "./components/modals/OwnerRevenueModal";
 import { MatchHighlightsModal } from "./components/modals/MatchHighlightsModal";
 import { WorldCupLiveHub } from "./components/WorldCupLiveHub";
+import { WorldCupFixturesOdds } from "./components/WorldCupFixturesOdds";
+import { WorldCupTournament } from "./components/WorldCupTournament";
 
 import {
   initializeNewTournament,
@@ -442,7 +444,9 @@ export default function App({ authSession }: { authSession: AuthSession }) {
 
       <div id="workspace-split" className="flex flex-1 min-h-0 overflow-hidden relative">
         <main className="flex-1 min-h-0 flex flex-col overflow-hidden bg-transparent">
-          {activeTab === "worldcup" && <WorldCupLiveHub />}
+          {(activeTab === "worldcup" || activeTab === "worldcup-live") && <WorldCupLiveHub />}
+          {activeTab === "worldcup-fixtures" && <WorldCupFixturesOdds />}
+          {activeTab === "worldcup-tournament" && <WorldCupTournament />}
           {activeTab === "live" && (
             <LiveMatches
               fixtures={fixtures} teams={teams}
@@ -555,7 +559,7 @@ export default function App({ authSession }: { authSession: AuthSession }) {
           )}
         </main>
 
-        {!["casino","store","feed","myclub","transfers","worldcup"].includes(activeTab) && (
+        {!["casino","store","feed","myclub","transfers","worldcup","worldcup-live","worldcup-fixtures","worldcup-tournament"].includes(activeTab) && (
           <BettingSlip
             selections={selectedBets} fixtures={fixtures} teams={teams}
             onRemoveSelection={bettingHook.handleRemoveSelection}

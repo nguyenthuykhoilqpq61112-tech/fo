@@ -38,7 +38,67 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
         <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-emerald-500/5 blur-[120px] pointer-events-none"></div>
         <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-blue-500/5 blur-[120px] pointer-events-none"></div>
 
-        <div className="max-w-4xl w-full grid grid-cols-1 md:grid-cols-12 gap-8 z-10 my-auto items-stretch">
+        <div className="max-w-6xl w-full z-10 my-auto space-y-6">
+          <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#141415] shadow-2xl min-h-[300px] md:min-h-[360px]">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_32%,rgba(16,185,129,0.28),transparent_28%),radial-gradient(circle_at_28%_85%,rgba(59,130,246,0.2),transparent_30%),linear-gradient(135deg,rgba(20,20,21,0.96),rgba(9,11,16,0.72))]" />
+            <div className="absolute right-[-80px] top-[-60px] h-[320px] w-[320px] rounded-full border-[34px] border-emerald-400/10" />
+            <div className="absolute right-4 bottom-0 hidden md:block h-[260px] w-[420px]">
+              <div className="absolute bottom-[-68px] right-10 h-[250px] w-[250px] rounded-full bg-white/5 border border-white/10 shadow-[0_0_70px_rgba(16,185,129,0.18)]" />
+              <div className="absolute bottom-12 right-28 h-24 w-24 rounded-full bg-[radial-gradient(circle_at_35%_35%,white_0_8%,#111827_9%_15%,white_16%_23%,#111827_24%_30%,white_31%)] border-4 border-white/80 shadow-2xl" />
+              <div className="absolute bottom-6 right-2 h-52 w-32 rounded-t-full bg-gradient-to-b from-emerald-300 via-emerald-500 to-slate-950 border border-emerald-200/30 shadow-2xl" />
+              <div className="absolute bottom-44 right-38 h-16 w-16 rounded-full bg-gradient-to-br from-slate-200 to-slate-500 border border-white/30" />
+            </div>
+            <div className="relative z-10 grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-6 p-5 md:p-8 min-h-[300px] md:min-h-[360px]">
+              <div className="flex flex-col justify-between gap-8">
+                <div className="space-y-4">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-emerald-200">
+                    <Sparkles size={13} />
+                    World Cup 2026 sportsbook
+                  </div>
+                  <div>
+                    <h1 className="text-4xl md:text-6xl font-black uppercase tracking-normal text-white leading-[0.92]">
+                      win-worldcup
+                    </h1>
+                    <p className="mt-3 max-w-xl text-sm md:text-base text-slate-300 leading-relaxed">
+                      Live match board, tournament map, fixtures and odds for the 2026 World Cup.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode("TOURNAMENT");
+                      setSelectedSlot(1);
+                    }}
+                    className="inline-flex items-center gap-2 rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-black hover:bg-emerald-300 transition-colors"
+                  >
+                    <Play size={16} fill="currentColor" />
+                    Start betting hub
+                  </button>
+                  <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+                    <div className="text-[10px] uppercase tracking-widest text-slate-500 font-mono">Opening bonus</div>
+                    <div className="text-xl font-black text-white">500% BOOST</div>
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 content-end lg:content-center">
+                {[
+                  ["France", "1.72"],
+                  ["Draw", "3.45"],
+                  ["Morocco", "5.20"],
+                  ["Live feed", "15s"],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-2xl border border-white/10 bg-black/35 p-4 backdrop-blur">
+                    <div className="text-[10px] uppercase tracking-widest text-slate-500 font-mono truncate">{label}</div>
+                    <div className="mt-1 text-2xl font-black text-emerald-300">{value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-stretch">
         
         {/* Left Side: Brand Concept Panel */}
         <div className="md:col-span-5 flex flex-col justify-between p-8 rounded-3xl bg-slate-900/40 border border-white/5 backdrop-blur-md relative">
@@ -163,6 +223,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                 </div>
               </div>
             </div>
+          </div>
           </div>
         </div>
 

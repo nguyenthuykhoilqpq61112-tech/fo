@@ -15,6 +15,13 @@ function statusStyles(status: WorldCupLiveMatch['status']) {
   return 'border-emerald-400/30 bg-emerald-500/10 text-emerald-200';
 }
 
+function oddsSourceLabel(match: WorldCupLiveMatch) {
+  if (match.oddsSource === 'polymarket') return 'Polymarket';
+  if (match.oddsSource === 'espn') return 'ESPN';
+  if (match.oddsSource === 'external') return 'External';
+  return 'Model';
+}
+
 export function WorldCupLiveHub() {
   const [matches, setMatches] = useState<WorldCupLiveMatch[]>([]);
   const [updatedAt, setUpdatedAt] = useState<string>('');
@@ -155,6 +162,12 @@ export function WorldCupLiveHub() {
                 <span className="block text-[10px] text-slate-400 uppercase tracking-wider">{match.away}</span>
                 <span className="text-lg font-black text-purple-300">{match.odds.away.toFixed(2)}</span>
               </button>
+            </div>
+            <div className="text-[10px] uppercase tracking-widest text-slate-500 font-mono">
+              Odds source: <span className="text-emerald-300 font-black">{oddsSourceLabel(match)}</span>
+              {match.polymarket?.question && (
+                <span className="normal-case tracking-normal text-slate-400"> · {match.polymarket.question}</span>
+              )}
             </div>
           </article>
         ))}

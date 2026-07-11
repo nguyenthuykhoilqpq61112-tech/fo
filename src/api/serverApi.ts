@@ -18,6 +18,15 @@ export interface WorldCupLiveMatch {
   homeScore?: number;
   awayScore?: number;
   odds: {home: number; draw: number; away: number};
+  oddsSource?: 'espn' | 'polymarket' | 'model' | 'external';
+  polymarket?: {
+    marketId: string;
+    question: string;
+    slug?: string;
+    url?: string;
+    prices: {home?: number; draw?: number; away?: number};
+    updatedAt?: string;
+  };
   marketOpen: boolean;
   source: 'fallback' | 'external' | 'espn';
 }
