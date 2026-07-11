@@ -211,27 +211,35 @@ function eventOdds(event: EspnEvent, competition: NonNullable<EspnEvent['competi
   return seededOdds(event.id);
 }
 
-function espnDates(now: Date) {
+function espnDateRanges(now: Date) {
   const explicit = process.env.WORLD_CUP_2026_ESPN_DATES;
-  if (explicit) return explicit;
+  if (explicit) return explicit.split(',').map((range) => range.trim()).filter(Boolean);
   const start = new Date(now);
   start.setUTCDate(start.getUTCDate() - 2);
   const end = new Date(now);
   end.setUTCDate(end.getUTCDate() + 8);
   const fmt = (date: Date) => date.toISOString().slice(0, 10).replace(/-/g, '');
-  return `${fmt(start)}-${fmt(end)}`;
+  return [
+    '20260611-20260801',
+    `${fmt(start)}-${fmt(end)}`,
+    '20260709-20260719',
+  ];
 }
 
 async function fetchEspnMatches(now: Date): Promise<WorldCupMatch[] | null> {
   if (process.env.WORLD_CUP_2026_DISABLE_ESPN === 'true') return null;
   const baseUrl = process.env.WORLD_CUP_2026_ESPN_URL || 'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard';
-  const url = new URL(baseUrl);
-  if (!url.searchParams.has('dates')) url.searchParams.set('dates', espnDates(now));
-  const response = await fetch(url, {headers: {accept: 'application/json'}, cache: 'no-store'});
-  if (!response.ok) throw new Error(`ESPN World Cup feed failed with ${response.status}`);
-  const body = await response.json() as {events?: EspnEvent[]};
-  if (!Array.isArray(body.events)) throw new Error('ESPN World Cup feed did not return events');
-  return body.events.map((event) => {
+  const events = new Map<string, EspnEvent>();
+  for (const dateRange of espnDateRanges(now)) {
+    const url = new URL(baseUrl);
+    if (!url.searchParams.has('dates')) url.searchParams.set('dates', dateRange);
+    const response = await fetch(url, {headers: {accept: 'application/json'}, cache: 'no-store'});
+    if (!response.ok) throw new Error(`ESPN World Cup feed failed with ${response.status}`);
+    const body = await response.json() as {events?: EspnEvent[]};
+    if (!Array.isArray(body.events)) throw new Error('ESPN World Cup feed did not return events');
+    for (const event of body.events) events.set(event.id, event);
+  }
+  return [...events.values()].map((event) => {
     const competition = event.competitions?.[0];
     const competitors = competition?.competitors || [];
     const home = competitors.find((competitor) => competitor.homeAway === 'home') || competitors[0];

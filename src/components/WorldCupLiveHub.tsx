@@ -47,6 +47,15 @@ export function WorldCupLiveHub() {
   }, [matches]);
 
   const liveCount = matches.filter((match) => match.status === 'LIVE').length;
+  const finishedCount = matches.filter((match) => match.status === 'FT').length;
+  const scheduledCount = matches.filter((match) => match.status === 'SCHEDULED').length;
+  const currentStage = useMemo(() => {
+    const active = sortedMatches.find((match) => match.status === 'LIVE');
+    if (active) return active.stage;
+    const next = sortedMatches.find((match) => match.status === 'SCHEDULED');
+    if (next) return next.stage;
+    return sortedMatches.at(-1)?.stage || 'World Cup';
+  }, [sortedMatches]);
 
   return (
     <section className="h-full overflow-y-auto p-4 md:p-6 space-y-5">
@@ -75,6 +84,24 @@ export function WorldCupLiveHub() {
         <div className="mt-4 flex flex-wrap gap-3 text-xs text-slate-400">
           <span><Wifi size={13} className="inline mr-1" /> source: {source}</span>
           {updatedAt && <span><Clock size={13} className="inline mr-1" /> updated: {formatKickoff(updatedAt)}</span>}
+        </div>
+        <div className="mt-5 grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3">
+            <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500 font-black">Matches</div>
+            <div className="mt-1 text-2xl font-black text-white">{matches.length}</div>
+          </div>
+          <div className="rounded-2xl border border-slate-400/20 bg-slate-500/10 px-4 py-3">
+            <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500 font-black">Completed</div>
+            <div className="mt-1 text-2xl font-black text-slate-100">{finishedCount}</div>
+          </div>
+          <div className="rounded-2xl border border-red-400/25 bg-red-500/10 px-4 py-3">
+            <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500 font-black">Live / Upcoming</div>
+            <div className="mt-1 text-2xl font-black text-red-100">{liveCount} / {scheduledCount}</div>
+          </div>
+          <div className="rounded-2xl border border-emerald-400/25 bg-emerald-500/10 px-4 py-3">
+            <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500 font-black">Current Stage</div>
+            <div className="mt-1 text-sm md:text-base font-black text-emerald-200 truncate">{currentStage}</div>
+          </div>
         </div>
       </div>
 
