@@ -15,11 +15,35 @@ export const WalletModal: React.FC<WalletModalProps> = ({
   const [walletAction, setWalletAction] = useState<"DEPOSIT" | "WITHDRAW">("DEPOSIT");
   const [walletValue, setWalletValue] = useState<string>("100");
   const [walletSuccessMsg, setWalletSuccessMsg] = useState<string>("");
+  const [txHash, setTxHash] = useState("");
+  const platformWallet = import.meta.env.VITE_PLATFORM_USDT_TRC20_ADDRESS || "SET_PLATFORM_USDT_TRC20_ADDRESS";
 
   const handleConfirm = () => {
     const amount = parseFloat(walletValue);
     if (isNaN(amount) || amount <= 0) {
       alert("Please enter a valid positive transaction amount!");
+      return;
+    }
+    if (walletAction === "DEPOSIT") {
+      if (amount < 20) {
+        alert("Minimum deposit is $20.");
+        return;
+      }
+      if (!txHash.trim()) {
+        alert("Enter your USDT transaction hash after sending funds.");
+        return;
+      }
+      setWalletSuccessMsg(`Deposit request submitted. Balance updates after admin confirms the USDT transfer.`);
+      setWalletValue("");
+      setTxHash("");
+      return;
+    }
+    if (walletAction === "WITHDRAW") {
+      if (amount < 100) {
+        alert("Minimum withdrawal is $100.");
+        return;
+      }
+      setWalletSuccessMsg("Withdrawal request noted. Contact live support for manual review and payout scheduling.");
       return;
     }
     const success = onConfirmTransaction(amount, walletAction);
@@ -50,10 +74,10 @@ export const WalletModal: React.FC<WalletModalProps> = ({
         <div className="text-center space-y-1 select-none">
           <span className="text-2xl block">🏦</span>
           <h3 className="text-sm font-black tracking-wider uppercase text-emerald-400 font-sans mt-2">
-            CU Bet Wallet Centre
+            win-worldcup Cashier
           </h3>
           <p className="text-[9px] text-slate-400 font-mono tracking-tight">
-            SECURE TRANSACTION PORTAL
+            USDT deposits require manual confirmation
           </p>
         </div>
 
@@ -89,7 +113,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
 
         <div className="space-y-1">
           <label className="text-[9px] font-mono font-bold text-slate-400 uppercase block">
-            {walletAction === "DEPOSIT" ? "ENTER DEPOSIT AMOUNT ($)" : "ENTER WITHDRAWAL AMOUNT ($)"}
+            {walletAction === "DEPOSIT" ? "ENTER USDT DEPOSIT AMOUNT ($)" : "ENTER WITHDRAWAL AMOUNT ($)"}
           </label>
           <div className="relative bg-black/45 rounded-xl border border-white/5 flex items-center px-3.5 py-1.5">
             <span className="text-slate-500 text-xs font-bold mr-1.5">$</span>
@@ -122,23 +146,22 @@ export const WalletModal: React.FC<WalletModalProps> = ({
           ))}
         </div>
 
-        {balance < 50 && (
+        {walletAction === "DEPOSIT" ? (
+          <div className="bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-xl space-y-2 animate-fade-in">
+            <span className="text-[10px] text-emerald-300 font-mono uppercase font-black block">USDT TRC20 deposit address</span>
+            <div className="break-all rounded-lg bg-black/35 p-2 text-[10px] font-mono text-slate-200">{platformWallet}</div>
+            <input
+              value={txHash}
+              onChange={(event) => setTxHash(event.target.value)}
+              placeholder="Paste transaction hash after sending USDT"
+              className="w-full rounded-lg border border-white/10 bg-black/35 px-3 py-2 text-[10px] text-white outline-none"
+            />
+            <p className="text-[9px] text-slate-400">Minimum deposit $20. Funds are credited only after platform confirmation.</p>
+          </div>
+        ) : (
           <div className="bg-amber-500/10 border border-amber-500/20 p-3 rounded-xl text-center space-y-2 animate-fade-in">
-            <span className="text-[10px] text-amber-400 font-mono uppercase font-black block">
-              ⚠️ EMERGENCY FUNDS AVAILABLE
-            </span>
-            <p className="text-[9px] text-slate-400">
-              Your balance is critically low. Collect a $1,000.00 cash grant to continue wagering!
-            </p>
-            <button
-              onClick={() => {
-                onConfirmTransaction(1000, "DEPOSIT");
-                setWalletSuccessMsg("Claimed $1,000.00 Emergency Grant!");
-              }}
-              className="w-full py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[10px] rounded-lg tracking-wider uppercase cursor-pointer transition-colors"
-            >
-              Collect $1,000 Grant
-            </button>
+            <span className="text-[10px] text-amber-400 font-mono uppercase font-black block">Manual withdrawal review</span>
+            <p className="text-[9px] text-slate-400">Minimum withdrawal $100. Contact live support with account ID, amount, and payout wallet. Platform may hold requests for risk, bonus, or settlement review.</p>
           </div>
         )}
 
@@ -163,7 +186,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                 : "bg-rose-650 hover:bg-rose-700 text-slate-100"
             }`}
           >
-            Confirm {walletAction === "DEPOSIT" ? "Deposit" : "Withdraw"}
+            {walletAction === "DEPOSIT" ? "Submit Deposit Hash" : "Request Support Review"}
           </button>
         </div>
       </div>

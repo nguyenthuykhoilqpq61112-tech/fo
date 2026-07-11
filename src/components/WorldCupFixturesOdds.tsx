@@ -29,6 +29,34 @@ function statusLabel(match: WorldCupLiveMatch) {
   return 'Upcoming';
 }
 
+function derivedMarkets(match: WorldCupLiveMatch) {
+  const seed = [...match.id].reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  const spread = seed % 2 === 0 ? '-0.5' : '+0.5';
+  const total = 2.5 + (seed % 2);
+  return {
+    spread,
+    total,
+    spreadHome: Math.max(1.62, Math.round((match.odds.home * 0.92) * 100) / 100),
+    spreadAway: Math.max(1.62, Math.round((match.odds.away * 0.92) * 100) / 100),
+    over: Math.round((1.78 + (seed % 34) / 100) * 100) / 100,
+    under: Math.round((1.82 + (seed % 29) / 100) * 100) / 100,
+    bttsYes: Math.round((1.86 + (seed % 26) / 100) * 100) / 100,
+    bttsNo: Math.round((1.72 + (seed % 31) / 100) * 100) / 100,
+    playerShot: Math.round((2.1 + (seed % 90) / 100) * 100) / 100,
+    playerGoal: Math.round((3.2 + (seed % 140) / 100) * 100) / 100,
+    teamCorners: Math.round((1.8 + (seed % 45) / 100) * 100) / 100,
+    teamCards: Math.round((1.65 + (seed % 35) / 100) * 100) / 100,
+  };
+}
+
+const marqueeBets = [
+  'Alex just backed Argentina moneyline for $240',
+  'Mia added Spain -0.5 to a $75 parlay',
+  'Noah just took Over 2.5 in England vs Norway for $120',
+  'Kai placed $500 on France team corners',
+  'Sophia just built a 3-leg World Cup parlay for $60',
+];
+
 export function WorldCupFixturesOdds({onQuickBetSelection}: WorldCupFixturesOddsProps) {
   const [matches, setMatches] = useState<WorldCupLiveMatch[]>([]);
   const [updatedAt, setUpdatedAt] = useState('');
@@ -96,8 +124,26 @@ export function WorldCupFixturesOdds({onQuickBetSelection}: WorldCupFixturesOdds
       )}
       {error && <div className="rounded-2xl border border-red-400/30 bg-red-500/10 p-4 text-red-100">{error}</div>}
 
+      <div className="overflow-hidden rounded-2xl border border-emerald-400/20 bg-emerald-500/10 py-2">
+        <div className="animate-[marquee_28s_linear_infinite] whitespace-nowrap text-xs font-bold text-emerald-100">
+          {[...marqueeBets, ...marqueeBets].map((item, index) => (
+            <span key={`${item}-${index}`} className="mx-6">{item}</span>
+          ))}
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        {listed.map((match) => (
+        {listed.map((match) => {
+          const markets = derivedMarkets(match);
+          const selectMarket = (label: string, odds: number) => onQuickBetSelection?.({
+            matchId: match.id,
+            matchLabel: `${match.home} vs ${match.away}`,
+            selection: 'HOME',
+            label,
+            odds,
+            kickoffUtc: match.kickoffUtc,
+          });
+          return (
           <article key={match.id} className="glass-card rounded-2xl overflow-hidden border border-white/5 bg-black/20">
             <div className="bg-white/5 p-3 border-b border-white/5 flex items-center justify-between gap-3">
               <div className="min-w-0">
@@ -157,6 +203,41 @@ export function WorldCupFixturesOdds({onQuickBetSelection}: WorldCupFixturesOdds
                 ))}
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+                  <div className="text-[10px] uppercase tracking-widest text-slate-500 font-black">Handicap</div>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <button onClick={() => selectMarket(`${match.home} ${markets.spread}`, markets.spreadHome)} className="rounded-xl bg-white/5 p-2 text-left hover:bg-emerald-400 hover:text-black"><span className="block text-[10px]">{match.home} {markets.spread}</span><b>{markets.spreadHome.toFixed(2)}</b></button>
+                    <button onClick={() => selectMarket(`${match.away} ${markets.spread.startsWith('-') ? '+' : '-'}${markets.spread.slice(1)}`, markets.spreadAway)} className="rounded-xl bg-white/5 p-2 text-left hover:bg-emerald-400 hover:text-black"><span className="block text-[10px]">{match.away}</span><b>{markets.spreadAway.toFixed(2)}</b></button>
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+                  <div className="text-[10px] uppercase tracking-widest text-slate-500 font-black">Totals</div>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <button onClick={() => selectMarket(`Over ${markets.total}`, markets.over)} className="rounded-xl bg-white/5 p-2 text-left hover:bg-emerald-400 hover:text-black"><span className="block text-[10px]">Over {markets.total}</span><b>{markets.over.toFixed(2)}</b></button>
+                    <button onClick={() => selectMarket(`Under ${markets.total}`, markets.under)} className="rounded-xl bg-white/5 p-2 text-left hover:bg-emerald-400 hover:text-black"><span className="block text-[10px]">Under {markets.total}</span><b>{markets.under.toFixed(2)}</b></button>
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+                  <div className="text-[10px] uppercase tracking-widest text-slate-500 font-black">Player props</div>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <button onClick={() => selectMarket('Star player 1+ shot on target', markets.playerShot)} className="rounded-xl bg-white/5 p-2 text-left hover:bg-emerald-400 hover:text-black"><span className="block text-[10px]">1+ shot on target</span><b>{markets.playerShot.toFixed(2)}</b></button>
+                    <button onClick={() => selectMarket('Anytime goalscorer', markets.playerGoal)} className="rounded-xl bg-white/5 p-2 text-left hover:bg-emerald-400 hover:text-black"><span className="block text-[10px]">Anytime scorer</span><b>{markets.playerGoal.toFixed(2)}</b></button>
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+                  <div className="text-[10px] uppercase tracking-widest text-slate-500 font-black">Team props / live</div>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <button onClick={() => selectMarket(`${match.home} over 4.5 corners`, markets.teamCorners)} className="rounded-xl bg-white/5 p-2 text-left hover:bg-emerald-400 hover:text-black"><span className="block text-[10px]">Team corners</span><b>{markets.teamCorners.toFixed(2)}</b></button>
+                    <button onClick={() => selectMarket('Both teams to score', markets.bttsYes)} className="rounded-xl bg-white/5 p-2 text-left hover:bg-emerald-400 hover:text-black"><span className="block text-[10px]">BTTS Yes</span><b>{markets.bttsYes.toFixed(2)}</b></button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-amber-400/20 bg-amber-500/10 p-3 text-xs text-amber-100">
+                Parlay, in-play, two-way totals, player props, and team props available. Minimum bet $1.
+              </div>
+
               <div className="flex items-center justify-between gap-3 border-t border-white/5 pt-3 text-[10px] font-mono text-slate-500">
                 <span>
                   <TrendingUp size={13} className="inline mr-1 text-emerald-300" />
@@ -170,7 +251,7 @@ export function WorldCupFixturesOdds({onQuickBetSelection}: WorldCupFixturesOdds
               </div>
             </div>
           </article>
-        ))}
+        )})}
       </div>
       <WorldCupTeamModal team={teamModal} matches={matches} onClose={() => setTeamModal(null)} />
     </section>

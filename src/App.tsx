@@ -33,6 +33,7 @@ import { WorldCupLiveHub } from "./components/WorldCupLiveHub";
 import { WorldCupFixturesOdds } from "./components/WorldCupFixturesOdds";
 import { WorldCupTournament } from "./components/WorldCupTournament";
 import { WorldCupQuickBet, type WorldCupQuickSelection } from "./components/WorldCupQuickBet";
+import {AdminPanel, AppFooter, BonusesPage, CompliancePage, FloatingChat, GeoConsent} from "./components/SiteUtilityPages";
 
 const TAB_PATHS: Record<string, string> = {
   fixtures: "/fixtures",
@@ -44,6 +45,10 @@ const TAB_PATHS: Record<string, string> = {
   leaderboard: "/leaderboard",
   career: "/career",
   casino: "/casino",
+  bonuses: "/bonuses",
+  admin: "/admin",
+  "fair-play": "/fair-play",
+  "responsible-gaming": "/responsible-gaming",
   worldcup: "/worldcup",
   "worldcup-live": "/worldcup/live",
   "worldcup-fixtures": "/worldcup/fixtures",
@@ -73,6 +78,14 @@ function tabFromPath(pathname: string) {
       return "career";
     case "/casino":
       return "casino";
+    case "/bonuses":
+      return "bonuses";
+    case "/admin":
+      return "admin";
+    case "/fair-play":
+      return "fair-play";
+    case "/responsible-gaming":
+      return "responsible-gaming";
     case "/worldcup":
       return "worldcup";
     case "/worldcup/live":
@@ -616,6 +629,10 @@ export default function App({ authSession }: { authSession: AuthSession }) {
               currentRoundIndex={userProfile.currentRoundIndex}
             />
           )}
+          {activeTab === "bonuses" && <BonusesPage />}
+          {activeTab === "admin" && <AdminPanel username={userProfile.username} />}
+          {activeTab === "fair-play" && <CompliancePage type="fair" />}
+          {activeTab === "responsible-gaming" && <CompliancePage type="responsible" />}
           {activeTab === "myclub" && userProfile.ownedTeamId && (
             <ClubManager
               ownedTeamId={userProfile.ownedTeamId}
@@ -648,7 +665,7 @@ export default function App({ authSession }: { authSession: AuthSession }) {
           )}
         </main>
 
-        {!["casino","feed","myclub","transfers","worldcup","worldcup-live","worldcup-fixtures","worldcup-tournament","worldcup-quick-bet"].includes(activeTab) && (
+        {!["casino","feed","myclub","transfers","worldcup","worldcup-live","worldcup-fixtures","worldcup-tournament","worldcup-quick-bet","bonuses","admin","fair-play","responsible-gaming"].includes(activeTab) && (
           <BettingSlip
             selections={selectedBets} fixtures={fixtures} teams={teams}
             onRemoveSelection={bettingHook.handleRemoveSelection}
@@ -660,6 +677,9 @@ export default function App({ authSession }: { authSession: AuthSession }) {
           />
         )}
       </div>
+      <AppFooter setActiveTab={setActiveTab} />
+      <FloatingChat />
+      <GeoConsent />
 
       {/* Transfer toast */}
       {transferToast && (

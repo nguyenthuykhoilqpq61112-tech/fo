@@ -127,6 +127,19 @@ async function handleApi(request: Request, url: URL) {
     return empty();
   }
 
+  if (url.pathname === '/api/admin/summary' && request.method === 'GET') {
+    const adminUsername = process.env.ADMIN_USERNAME || 'admin';
+    if (authed.username.toLowerCase() !== adminUsername.toLowerCase()) return sendError(403, 'Admin access required');
+    return json({
+      users: [...usersByUsername.values()].map((user) => ({id: user.id, username: user.username})),
+      sessions: sessions.size,
+      gameStates: gameStates.size,
+      walletLedgerCount: walletLedger.length,
+      betAuditCount: betAudit.length,
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
   const gameStateParams = route(url.pathname, /^\/api\/game-state\/(?<mode>[^/]+)\/(?<slot>[^/]+)$/);
   if (gameStateParams && request.method === 'GET') {
     try {

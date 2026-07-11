@@ -112,3 +112,16 @@ export async function auditBet(mode: 'TOURNAMENT' | 'LEAGUE', slot: number, tick
 export async function fetchWorldCupLive() {
   return api<WorldCupLivePayload>('/api/world-cup/live');
 }
+
+export interface AdminSummary {
+  users: {id: string; username: string}[];
+  sessions: number;
+  gameStates: number;
+  walletLedgerCount: number;
+  betAuditCount: number;
+  updatedAt: string;
+}
+
+export async function fetchAdminSummary() {
+  return api<AdminSummary>('/api/admin/summary');
+}

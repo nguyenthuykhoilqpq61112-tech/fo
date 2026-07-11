@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Tv, Calendar, Ticket, Users, BarChart3, Trophy, Award, Plus, RotateCcw, Activity, LogOut, Gamepad2, MessageSquare, ShieldCheck, ArrowLeftRight, Globe2, ChevronDown, UserCircle, WalletCards } from "lucide-react";
+import { Tv, Calendar, Ticket, Users, BarChart3, Trophy, Award, Plus, RotateCcw, Activity, LogOut, Gamepad2, MessageSquare, ShieldCheck, ArrowLeftRight, Globe2, ChevronDown, UserCircle, WalletCards, Search, ArrowLeft, Gift, Scale, HeartHandshake, LayoutDashboard } from "lucide-react";
 
 interface HeaderProps {
   activeTab: string;
@@ -27,7 +27,7 @@ export const Header: React.FC<HeaderProps> = ({
   hasOwnedClub = false,
 }) => {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [openMenu, setOpenMenu] = useState<"esports" | "worldcup" | "profile" | null>(null);
+  const [openMenu, setOpenMenu] = useState<"esports" | "worldcup" | "profile" | "search" | null>(null);
   const esportsTabs = [
     { id: "live", label: "Live", icon: <Tv size={14} className="opacity-85" /> },
     { id: "fixtures", label: "Fixtures & Odds", icon: <Calendar size={14} className="opacity-85" /> },
@@ -41,6 +41,7 @@ export const Header: React.FC<HeaderProps> = ({
     { id: "worldcup-quick-bet", label: "One-click Bet", icon: <Ticket size={14} className="opacity-85" /> },
   ];
   const tabs = [
+    { id: "bonuses", label: "Bonuses", icon: <Gift size={14} className="opacity-85" /> },
     { id: "bets", label: "My Bets", icon: <Ticket size={14} className="opacity-85" /> },
     { id: "feed", label: "Fan Feed", icon: <MessageSquare size={14} className="opacity-85" /> },
     { id: "casino", label: "Elite Casino", icon: <Gamepad2 size={14} className="opacity-[0.95] text-amber-450" /> },
@@ -48,7 +49,10 @@ export const Header: React.FC<HeaderProps> = ({
     ...(hasOwnedClub ? [{ id: "transfers", label: "Transfers", icon: <ArrowLeftRight size={14} className="text-sky-400" /> }] : []),
     { id: "analytics", label: "Analytics", icon: <BarChart3 size={14} className="opacity-85" /> },
     { id: "leaderboard", label: "Leaderboard", icon: <Award size={14} className="opacity-85" /> },
-    { id: "career", label: "Career", icon: <div className="text-yellow-400 font-bold">🏅</div> }
+    { id: "career", label: "Career", icon: <div className="text-yellow-400 font-bold">🏅</div> },
+    { id: "fair-play", label: "Fair Play", icon: <Scale size={14} className="opacity-85" /> },
+    { id: "responsible-gaming", label: "Responsible Gaming", icon: <HeartHandshake size={14} className="opacity-85" /> },
+    { id: "admin", label: "Admin", icon: <LayoutDashboard size={14} className="opacity-85" /> },
   ];
   const esportsActive = esportsTabs.some((tab) => tab.id === activeTab);
   const worldCupActive = worldCupTabs.some((tab) => tab.id === activeTab) || activeTab === "worldcup";
@@ -110,6 +114,9 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="glass-panel border-x-0 border-t-0 rounded-none h-16 px-4 md:px-6 flex items-center justify-between select-none shrink-0 z-40">
       {/* Brand logo */}
+      <button type="button" onClick={() => window.history.back()} className="mr-2 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white p-2 rounded-lg border border-white/10 transition-all cursor-pointer min-w-[36px] min-h-[36px] flex items-center justify-center" title="Back">
+        <ArrowLeft size={14} />
+      </button>
       <button type="button" onClick={exitToMenu} className="flex items-center gap-3 cursor-pointer hover:opacity-85 transition-opacity" title="Go to home">
         <Activity size={20} className="animate-pulse text-emerald-400" />
         <div className="hidden sm:block">
@@ -168,6 +175,27 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Profile & Wallet */}
       <div className="flex items-center gap-1.5 md:gap-3">
+        <button
+          type="button"
+          onClick={() => setOpenMenu(openMenu === "search" ? null : "search")}
+          title="Search"
+          className="bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white p-2 rounded-lg border border-white/10 transition-all cursor-pointer min-w-[36px] min-h-[36px] flex items-center justify-center"
+        >
+          <Search size={14} />
+        </button>
+        {openMenu === "search" && (
+          <div className="absolute right-32 top-16 z-[80] w-[320px] rounded-xl border border-white/10 bg-slate-950/95 p-3 shadow-2xl backdrop-blur">
+            <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-black/35 px-3 py-2">
+              <Search size={14} className="text-emerald-300" />
+              <input className="w-full bg-transparent text-xs text-white outline-none placeholder:text-slate-500" placeholder="Search teams, fixtures, props..." />
+            </div>
+            <div className="mt-2 grid grid-cols-2 gap-2 text-[10px] font-bold text-slate-300">
+              {["World Cup live", "Fixture odds", "USDT cashier", "Responsible gaming"].map((item) => (
+                <button key={item} className="rounded-lg bg-white/5 px-2 py-2 text-left hover:bg-white/10">{item}</button>
+              ))}
+            </div>
+          </div>
+        )}
         {/* Wallet Display */}
         <button type="button" onClick={addFunds} className="bg-white/5 px-2 md:px-3 py-1.5 rounded-lg border border-white/10 flex items-center gap-1.5 md:gap-2 hover:bg-white/10 transition-colors">
           <span className="hidden sm:inline text-[9px] font-mono text-slate-400 tracking-wider">WALLET:</span>

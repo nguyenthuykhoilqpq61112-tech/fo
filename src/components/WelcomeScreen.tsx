@@ -134,10 +134,10 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             
             <div className="space-y-2">
               <h1 className="text-3xl font-black uppercase tracking-wider text-slate-100 font-sans leading-none">
-                win-<span className="text-emerald-400">worldcup</span>
+                Sportsbook <span className="text-emerald-400">Lobby</span>
               </h1>
               <p className="text-xs text-slate-400 font-mono tracking-widest uppercase">
-                Connected betting hub
+                World Cup and Esports navigation
               </p>
             </div>
 
@@ -257,9 +257,9 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-1">
               <h2 className="text-xl font-bold text-slate-100 font-sans tracking-tight">
-                Create Betting Profile
+                Enter Sportsbook Lobby
               </h2>
-              <p className="text-xs text-slate-400 font-medium">Configure your wallet and enter the connected betting lobby</p>
+              <p className="text-xs text-slate-400 font-medium">Choose a starting wallet and open the betting dashboard</p>
             </div>
 
             {/* Input 1: Username */}

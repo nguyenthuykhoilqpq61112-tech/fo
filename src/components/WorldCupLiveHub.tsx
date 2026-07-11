@@ -69,6 +69,38 @@ export function WorldCupLiveHub() {
 
   return (
     <section className="h-full overflow-y-auto p-4 md:p-6 space-y-5">
+      <div className="grid grid-cols-1 xl:grid-cols-[1.35fr_0.65fr] gap-4">
+        <div className="relative min-h-[320px] overflow-hidden rounded-3xl border border-white/10 bg-black shadow-2xl">
+          <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.85),rgba(0,0,0,0.28)),radial-gradient(circle_at_74%_38%,rgba(16,185,129,0.22),transparent_34%),linear-gradient(135deg,#0f172a,#020617)]" />
+          <div className="absolute right-8 top-8 rounded-full border border-red-400/50 bg-red-500/20 px-3 py-1 text-xs font-black text-red-100">
+            <Radio size={13} className="inline mr-1 animate-pulse" /> LIVE CHANNEL
+          </div>
+          <div className="relative z-10 flex min-h-[320px] flex-col justify-end p-6">
+            <div className="text-[10px] uppercase tracking-widest text-emerald-300 font-black">World Cup broadcast center</div>
+            <h2 className="mt-2 max-w-2xl text-3xl md:text-5xl font-black text-white">Live channel, match ticker, and in-play market desk</h2>
+            <div className="mt-5 grid grid-cols-1 md:grid-cols-3 gap-3 max-w-3xl">
+              {['Main feed', 'Tactical cam', 'Odds desk'].map((channel, index) => (
+                <button key={channel} className={`rounded-2xl border px-4 py-3 text-left ${index === 0 ? 'border-emerald-300/40 bg-emerald-400/15 text-emerald-100' : 'border-white/10 bg-white/5 text-slate-300'}`}>
+                  <span className="block text-[9px] uppercase tracking-widest opacity-70">Channel {index + 1}</span>
+                  <span className="text-sm font-black">{channel}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+          <div className="text-[10px] uppercase tracking-widest text-emerald-300 font-black">Live ticker</div>
+          <div className="mt-3 space-y-3">
+            {sortedMatches.filter((match) => match.status !== 'FT').slice(0, 5).map((match) => (
+              <div key={match.id} className="rounded-2xl border border-white/10 bg-black/25 p-3">
+                <div className="text-xs font-black text-white">{match.home} vs {match.away}</div>
+                <div className="mt-1 text-[10px] text-slate-400">{match.stage} · {formatKickoff(match.kickoffUtc)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
       <div className="glass-panel p-5 rounded-3xl border-white/10 bg-gradient-to-br from-emerald-500/10 via-white/[0.03] to-sky-500/10">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
