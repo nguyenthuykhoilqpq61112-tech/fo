@@ -34,6 +34,34 @@ function sendError(status: number, message: string) {
   return json({error: message}, status);
 }
 
+function corsHeaders(request: Request) {
+  const origin = request.headers.get('origin') || '';
+  const allowedOrigins = String(process.env.ADMIN_ALLOWED_ORIGINS || process.env.ADMIN_ALLOWED_ORIGIN || '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  if (!origin || allowedOrigins.length === 0) return {};
+  if (!allowedOrigins.includes('*') && !allowedOrigins.includes(origin)) return {};
+
+  return {
+    'access-control-allow-origin': allowedOrigins.includes('*') ? '*' : origin,
+    'access-control-allow-methods': 'GET,POST,PUT,OPTIONS',
+    'access-control-allow-headers': 'content-type,authorization',
+    'vary': 'Origin',
+  };
+}
+
+function withCors(response: Response, request: Request) {
+  const headers = new Headers(response.headers);
+  Object.entries(corsHeaders(request)).forEach(([key, value]) => headers.set(key, value));
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 function newId(prefix: string) {
   return `${prefix}_${globalThis.crypto.randomUUID()}`;
 }
@@ -303,7 +331,10 @@ function contentType(filePath: string) {
 
 export async function fetch(request: Request) {
   const url = new URL(request.url);
-  if (url.pathname.startsWith('/api/')) return handleApi(request, url);
+  if (url.pathname.startsWith('/api/')) {
+    if (request.method === 'OPTIONS') return new Response(null, {status: 204, headers: corsHeaders(request)});
+    return withCors(await handleApi(request, url), request);
+  }
   return serveLocalStatic(url);
 }
 

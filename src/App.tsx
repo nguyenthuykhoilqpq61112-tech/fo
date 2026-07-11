@@ -33,7 +33,7 @@ import { WorldCupLiveHub } from "./components/WorldCupLiveHub";
 import { WorldCupFixturesOdds } from "./components/WorldCupFixturesOdds";
 import { WorldCupTournament } from "./components/WorldCupTournament";
 import { WorldCupQuickBet, type WorldCupQuickSelection } from "./components/WorldCupQuickBet";
-import {AdminPanel, AppFooter, BonusesPage, CompliancePage, FloatingChat, GeoConsent} from "./components/SiteUtilityPages";
+import {AppFooter, BonusesPage, CompliancePage, FloatingChat, GeoConsent} from "./components/SiteUtilityPages";
 
 const TAB_PATHS: Record<string, string> = {
   fixtures: "/fixtures",
@@ -46,7 +46,6 @@ const TAB_PATHS: Record<string, string> = {
   career: "/career",
   casino: "/casino",
   bonuses: "/bonuses",
-  admin: "/admin",
   "fair-play": "/fair-play",
   "responsible-gaming": "/responsible-gaming",
   worldcup: "/worldcup",
@@ -80,8 +79,6 @@ function tabFromPath(pathname: string) {
       return "casino";
     case "/bonuses":
       return "bonuses";
-    case "/admin":
-      return "admin";
     case "/fair-play":
       return "fair-play";
     case "/responsible-gaming":
@@ -470,38 +467,6 @@ export default function App({ authSession }: { authSession: AuthSession }) {
       ? `Matchday ${(userProfile?.currentRoundIndex ?? 0) + 1}`
       : ROUND_LABELS[userProfile?.currentRoundIndex || 0] || "Session Concluded";
 
-  if (activeTab === "admin") {
-    return (
-      <div className="h-screen w-screen overflow-hidden bg-[#0f1115] text-slate-100 font-sans">
-        <div className="flex h-full">
-          <aside className="hidden w-64 shrink-0 border-r border-slate-800 bg-[#090b0f] p-5 md:block">
-            <div className="text-xs font-black uppercase tracking-widest text-emerald-300">win-worldcup</div>
-            <div className="mt-1 text-lg font-black text-white">Admin Back Office</div>
-            <nav className="mt-8 space-y-2 text-sm">
-              {["Users", "Deposits", "Withdrawals", "Risk Review", "Bonus Controls"].map((item) => (
-                <div key={item} className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-slate-300">
-                  {item}
-                </div>
-              ))}
-            </nav>
-          </aside>
-          <main className="flex min-w-0 flex-1 flex-col">
-            <header className="flex h-16 items-center justify-between border-b border-slate-800 bg-[#11141a] px-5">
-              <div>
-                <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Private route</div>
-                <h1 className="text-base font-black text-white">Operations dashboard</h1>
-              </div>
-              <div className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-bold text-slate-300">
-                {authSession.user.username}
-              </div>
-            </header>
-            <AdminPanel username={authSession.user.username} />
-          </main>
-        </div>
-      </div>
-    );
-  }
-
   // ─── Welcome screen ─────────────────────────────────────────────────
   if (!gameMode || !userProfile) {
     const savedTournaments = [
@@ -662,7 +627,6 @@ export default function App({ authSession }: { authSession: AuthSession }) {
             />
           )}
           {activeTab === "bonuses" && <BonusesPage />}
-          {activeTab === "admin" && <AdminPanel username={userProfile.username} />}
           {activeTab === "fair-play" && <CompliancePage type="fair" />}
           {activeTab === "responsible-gaming" && <CompliancePage type="responsible" />}
           {activeTab === "myclub" && userProfile.ownedTeamId && (
@@ -697,7 +661,7 @@ export default function App({ authSession }: { authSession: AuthSession }) {
           )}
         </main>
 
-        {!["casino","feed","myclub","transfers","worldcup","worldcup-live","worldcup-fixtures","worldcup-tournament","worldcup-quick-bet","bonuses","admin","fair-play","responsible-gaming"].includes(activeTab) && (
+        {!["casino","feed","myclub","transfers","worldcup","worldcup-live","worldcup-fixtures","worldcup-tournament","worldcup-quick-bet","bonuses","fair-play","responsible-gaming"].includes(activeTab) && (
           <BettingSlip
             selections={selectedBets} fixtures={fixtures} teams={teams}
             onRemoveSelection={bettingHook.handleRemoveSelection}

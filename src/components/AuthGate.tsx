@@ -7,7 +7,7 @@ interface AuthGateProps {
 }
 
 export function AuthGate({children}: AuthGateProps) {
-  const authPath = typeof window !== 'undefined' && ['/login', '/register', '/admin'].includes(window.location.pathname);
+  const authPath = typeof window !== 'undefined' && ['/login', '/register'].includes(window.location.pathname);
   const initialMode = typeof window !== 'undefined' && window.location.pathname === '/register' ? 'register' : 'login';
   const [session, setSession] = useState<AuthSession | null>(() => authPath ? null : getStoredSession());
   const [mode, setMode] = useState<'login' | 'register'>(initialMode);
