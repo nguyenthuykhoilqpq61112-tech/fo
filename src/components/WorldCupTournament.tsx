@@ -1,6 +1,8 @@
 import {useEffect, useMemo, useState} from 'react';
 import {Clock, MapPin, RefreshCw, Trophy} from 'lucide-react';
 import {fetchWorldCupLive, type WorldCupLiveMatch} from '../api/serverApi';
+import {WorldCupTeamButton} from './WorldCupTeamButton';
+import {WorldCupTeamModal} from './WorldCupTeamModal';
 
 const knockoutOrder = [
   'Round of 32',
@@ -45,6 +47,7 @@ export function WorldCupTournament() {
   const [updatedAt, setUpdatedAt] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [teamModal, setTeamModal] = useState<string | null>(null);
 
   const load = async () => {
     try {
@@ -152,11 +155,11 @@ export function WorldCupTournament() {
                       </div>
                       <div className="mt-2 space-y-1.5">
                         <div className="flex items-center justify-between gap-3 text-sm">
-                          <span className={`font-bold truncate ${winner === match.home ? 'text-emerald-300' : 'text-slate-200'}`}>{match.home}</span>
+                          <WorldCupTeamButton team={match.home} onOpen={setTeamModal} />
                           <span className="font-mono text-slate-100">{match.status === 'SCHEDULED' ? '-' : match.homeScore ?? 0}</span>
                         </div>
                         <div className="flex items-center justify-between gap-3 text-sm">
-                          <span className={`font-bold truncate ${winner === match.away ? 'text-emerald-300' : 'text-slate-200'}`}>{match.away}</span>
+                          <WorldCupTeamButton team={match.away} onOpen={setTeamModal} />
                           <span className="font-mono text-slate-100">{match.status === 'SCHEDULED' ? '-' : match.awayScore ?? 0}</span>
                         </div>
                       </div>
@@ -178,6 +181,7 @@ export function WorldCupTournament() {
           ))}
         </div>
       </div>
+      <WorldCupTeamModal team={teamModal} matches={matches} onClose={() => setTeamModal(null)} />
     </section>
   );
 }

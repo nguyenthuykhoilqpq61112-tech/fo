@@ -1,6 +1,13 @@
 import {useEffect, useMemo, useState} from 'react';
 import {Calendar, Clock, ExternalLink, RefreshCw, ShieldCheck, TrendingUp} from 'lucide-react';
 import {fetchWorldCupLive, type WorldCupLiveMatch} from '../api/serverApi';
+import {WorldCupTeamButton} from './WorldCupTeamButton';
+import {WorldCupTeamModal} from './WorldCupTeamModal';
+import type {WorldCupQuickSelection} from './WorldCupQuickBet';
+
+interface WorldCupFixturesOddsProps {
+  onQuickBetSelection?: (selection: WorldCupQuickSelection) => void;
+}
 
 function formatKickoff(value: string) {
   return new Intl.DateTimeFormat(undefined, {
@@ -22,11 +29,12 @@ function statusLabel(match: WorldCupLiveMatch) {
   return 'Upcoming';
 }
 
-export function WorldCupFixturesOdds() {
+export function WorldCupFixturesOdds({onQuickBetSelection}: WorldCupFixturesOddsProps) {
   const [matches, setMatches] = useState<WorldCupLiveMatch[]>([]);
   const [updatedAt, setUpdatedAt] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [teamModal, setTeamModal] = useState<string | null>(null);
 
   const load = async () => {
     try {
@@ -109,20 +117,14 @@ export function WorldCupFixturesOdds() {
 
             <div className="p-4 space-y-4">
               <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-                <div>
-                  <div className="text-[10px] text-slate-500 uppercase tracking-widest">Home</div>
-                  <div className="text-base font-black text-slate-100 truncate">{match.home}</div>
-                </div>
+                <WorldCupTeamButton team={match.home} onOpen={setTeamModal} />
                 <div className="text-center rounded-xl border border-white/10 bg-white/5 px-3 py-2 min-w-[74px]">
                   <div className="text-lg font-black text-emerald-300">
                     {match.status === 'SCHEDULED' ? 'VS' : `${match.homeScore ?? 0}-${match.awayScore ?? 0}`}
                   </div>
                   <div className="text-[9px] text-slate-500 uppercase tracking-widest">Score</div>
                 </div>
-                <div className="text-right">
-                  <div className="text-[10px] text-slate-500 uppercase tracking-widest">Away</div>
-                  <div className="text-base font-black text-slate-100 truncate">{match.away}</div>
-                </div>
+                <WorldCupTeamButton team={match.away} align="right" onOpen={setTeamModal} />
               </div>
 
               <div className="flex flex-wrap gap-3 text-[11px] text-slate-400">
@@ -132,14 +134,26 @@ export function WorldCupFixturesOdds() {
 
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  {label: match.home, value: match.odds.home, className: 'bg-emerald-500/10 border-emerald-400/20 text-emerald-300'},
-                  {label: 'Draw', value: match.odds.draw, className: 'bg-sky-500/10 border-sky-400/20 text-sky-300'},
-                  {label: match.away, value: match.odds.away, className: 'bg-amber-500/10 border-amber-400/20 text-amber-300'},
+                  {id: 'HOME' as const, label: match.home, value: match.odds.home, className: 'bg-emerald-500/10 border-emerald-400/20 text-emerald-300'},
+                  {id: 'DRAW' as const, label: 'Draw', value: match.odds.draw, className: 'bg-sky-500/10 border-sky-400/20 text-sky-300'},
+                  {id: 'AWAY' as const, label: match.away, value: match.odds.away, className: 'bg-amber-500/10 border-amber-400/20 text-amber-300'},
                 ].map((line) => (
-                  <div key={line.label} className={`rounded-xl border p-3 ${line.className}`}>
+                  <button
+                    key={line.id}
+                    type="button"
+                    onClick={() => onQuickBetSelection?.({
+                      matchId: match.id,
+                      matchLabel: `${match.home} vs ${match.away}`,
+                      selection: line.id,
+                      label: line.label,
+                      odds: line.value,
+                      kickoffUtc: match.kickoffUtc,
+                    })}
+                    className={`rounded-xl border p-3 text-left hover:scale-[1.01] transition-transform ${line.className}`}
+                  >
                     <div className="text-[9px] text-slate-400 uppercase tracking-wider truncate">{line.label}</div>
                     <div className="text-lg font-black">{line.value.toFixed(2)}</div>
-                  </div>
+                  </button>
                 ))}
               </div>
 
@@ -158,6 +172,7 @@ export function WorldCupFixturesOdds() {
           </article>
         ))}
       </div>
+      <WorldCupTeamModal team={teamModal} matches={matches} onClose={() => setTeamModal(null)} />
     </section>
   );
 }

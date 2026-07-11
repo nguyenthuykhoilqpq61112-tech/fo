@@ -20,7 +20,6 @@ import { Leaderboard } from "./components/Leaderboard";
 import { WelcomeScreen } from "./components/WelcomeScreen";
 import { LeagueStandings } from "./components/LeagueStandings";
 import { CasinoSuite } from "./components/CasinoSuite";
-import { VIPStore } from "./components/VIPStore";
 import { ClubManager } from "./components/ClubManager";
 import { SocialFeed } from "./components/SocialFeed";
 import { TransferMarket } from "./components/TransferMarket";
@@ -33,6 +32,7 @@ import { MatchHighlightsModal } from "./components/modals/MatchHighlightsModal";
 import { WorldCupLiveHub } from "./components/WorldCupLiveHub";
 import { WorldCupFixturesOdds } from "./components/WorldCupFixturesOdds";
 import { WorldCupTournament } from "./components/WorldCupTournament";
+import { WorldCupQuickBet, type WorldCupQuickSelection } from "./components/WorldCupQuickBet";
 
 import {
   initializeNewTournament,
@@ -81,6 +81,7 @@ export default function App({ authSession }: { authSession: AuthSession }) {
   const [selectedFixtureId, setSelectedFixtureId] = useState<string>(() =>
     localStorage.getItem("lastSelectedFixtureId") || "",
   );
+  const [worldCupQuickSelection, setWorldCupQuickSelection] = useState<WorldCupQuickSelection | null>(null);
 
   const [teams, setTeams] = useState<Team[]>([]);
   const [fixtures, setFixtures] = useState<Fixture[]>([]);
@@ -261,6 +262,7 @@ export default function App({ authSession }: { authSession: AuthSession }) {
     startingBalance: number,
     mode: "TOURNAMENT" | "LEAGUE",
     slot: number,
+    initialTab = "fixtures",
   ) => {
     setActiveSlot(slot);
     localStorage.setItem("fs_selected_game_slot", String(slot));
@@ -288,7 +290,7 @@ export default function App({ authSession }: { authSession: AuthSession }) {
     setShowWinnerCelebration(false);
     setTransferListings([]);
     setUserBid(null);
-    setActiveTab("fixtures");
+    setActiveTab(initialTab);
     if (simTimerRef.current) clearInterval(simTimerRef.current);
   };
 
@@ -417,6 +419,8 @@ export default function App({ authSession }: { authSession: AuthSession }) {
     return (
       <WelcomeScreen
         onKickoff={handleStartNewCampaign}
+        onQuickBet={(username, startingBalance, mode, slot) => handleStartNewCampaign(username, startingBalance, mode, slot, "worldcup-quick-bet")}
+        onEnterPage={(username, startingBalance, mode, slot, tab) => handleStartNewCampaign(username, startingBalance, mode, slot, tab)}
         savedTournaments={savedTournaments}
         savedLeagues={savedLeagues}
         resumeActiveMode={handleResumeCampaign}
@@ -445,8 +449,21 @@ export default function App({ authSession }: { authSession: AuthSession }) {
       <div id="workspace-split" className="flex flex-1 min-h-0 overflow-hidden relative">
         <main className="flex-1 min-h-0 flex flex-col overflow-hidden bg-transparent">
           {(activeTab === "worldcup" || activeTab === "worldcup-live") && <WorldCupLiveHub />}
-          {activeTab === "worldcup-fixtures" && <WorldCupFixturesOdds />}
+          {activeTab === "worldcup-fixtures" && (
+            <WorldCupFixturesOdds
+              onQuickBetSelection={(selection) => {
+                setWorldCupQuickSelection(selection);
+                setActiveTab("worldcup-quick-bet");
+              }}
+            />
+          )}
           {activeTab === "worldcup-tournament" && <WorldCupTournament />}
+          {activeTab === "worldcup-quick-bet" && (
+            <WorldCupQuickBet
+              initialSelection={worldCupQuickSelection}
+              onInitialSelectionConsumed={() => setWorldCupQuickSelection(null)}
+            />
+          )}
           {activeTab === "live" && (
             <LiveMatches
               fixtures={fixtures} teams={teams}
@@ -517,16 +534,6 @@ export default function App({ authSession }: { authSession: AuthSession }) {
               currentRoundIndex={userProfile.currentRoundIndex}
             />
           )}
-          {activeTab === "store" && (
-            <VIPStore
-              balance={userProfile.balance}
-              purchasedItems={userProfile.purchasedItems || []}
-              onPurchase={profileHook.handlePurchaseVIPItem}
-              onLiquidate={profileHook.handleLiquidateVIPItem}
-              teams={teams}
-              ownedTeamId={userProfile.ownedTeamId}
-            />
-          )}
           {activeTab === "myclub" && userProfile.ownedTeamId && (
             <ClubManager
               ownedTeamId={userProfile.ownedTeamId}
@@ -559,7 +566,7 @@ export default function App({ authSession }: { authSession: AuthSession }) {
           )}
         </main>
 
-        {!["casino","store","feed","myclub","transfers","worldcup","worldcup-live","worldcup-fixtures","worldcup-tournament"].includes(activeTab) && (
+        {!["casino","feed","myclub","transfers","worldcup","worldcup-live","worldcup-fixtures","worldcup-tournament","worldcup-quick-bet"].includes(activeTab) && (
           <BettingSlip
             selections={selectedBets} fixtures={fixtures} teams={teams}
             onRemoveSelection={bettingHook.handleRemoveSelection}

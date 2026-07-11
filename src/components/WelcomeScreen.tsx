@@ -3,6 +3,8 @@ import { Trophy, Award, Sparkles, User, Coins, Play, ArrowRight, Trash2 } from "
 
 interface WelcomeScreenProps {
   onKickoff: (username: string, startingBalance: number, mode: "TOURNAMENT" | "LEAGUE", slot: number) => void;
+  onQuickBet: (username: string, startingBalance: number, mode: "TOURNAMENT" | "LEAGUE", slot: number) => void;
+  onEnterPage: (username: string, startingBalance: number, mode: "TOURNAMENT" | "LEAGUE", slot: number, tab: string) => void;
   savedTournaments: boolean[]; // index 0, 1, 2 correspond to Slot 1, 2, 3
   savedLeagues: boolean[];      // index 0, 1, 2 correspond to Slot 1, 2, 3
   resumeActiveMode: (mode: "TOURNAMENT" | "LEAGUE", slot: number) => void;
@@ -11,6 +13,8 @@ interface WelcomeScreenProps {
 
 export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   onKickoff,
+  onQuickBet,
+  onEnterPage,
   savedTournaments,
   savedLeagues,
   resumeActiveMode,
@@ -68,18 +72,38 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                   <button
                     type="button"
                     onClick={() => {
-                      setMode("TOURNAMENT");
-                      setSelectedSlot(1);
+                      if (!username.trim()) return;
+                      onQuickBet(username.trim(), balance, mode, selectedSlot);
                     }}
                     className="inline-flex items-center gap-2 rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-black hover:bg-emerald-300 transition-colors"
                   >
                     <Play size={16} fill="currentColor" />
-                    Start betting hub
+                    One-click betting
                   </button>
                   <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
                     <div className="text-[10px] uppercase tracking-widest text-slate-500 font-mono">Opening bonus</div>
                     <div className="text-xl font-black text-white">500% BOOST</div>
                   </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    ['World Cup Live', 'worldcup-live'],
+                    ['Fixtures & Odds', 'worldcup-fixtures'],
+                    ['Tournament', 'worldcup-tournament'],
+                    ['Esports Live', 'live'],
+                  ].map(([label, tab]) => (
+                    <button
+                      key={tab}
+                      type="button"
+                      onClick={() => {
+                        if (!username.trim()) return;
+                        onEnterPage(username.trim(), balance, mode, selectedSlot, tab);
+                      }}
+                      className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-slate-200 hover:border-emerald-400/40 hover:text-emerald-300 transition-colors"
+                    >
+                      {label}
+                    </button>
+                  ))}
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3 content-end lg:content-center">
@@ -110,15 +134,15 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             
             <div className="space-y-2">
               <h1 className="text-3xl font-black uppercase tracking-wider text-slate-100 font-sans leading-none">
-                CU <span className="text-emerald-400">Bet</span>
+                win-<span className="text-emerald-400">worldcup</span>
               </h1>
               <p className="text-xs text-slate-400 font-mono tracking-widest uppercase">
-                Campaign Seeding Arena
+                Connected betting hub
               </p>
             </div>
 
             <p className="text-xs text-slate-400 leading-relaxed">
-              Step into the ultimate visual betting and matches simulator. Take charge of a football club championship campaign as a general manager and elite bet predictor.
+              Enter the live World Cup board, one-click betting page, esports simulator, and tournament tools from a single connected lobby.
             </p>
           </div>
 
@@ -233,9 +257,9 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-1">
               <h2 className="text-xl font-bold text-slate-100 font-sans tracking-tight">
-                Create Manager Profile
+                Create Betting Profile
               </h2>
-              <p className="text-xs text-slate-400 font-medium">Configure your initial parameters to enter the lobby</p>
+              <p className="text-xs text-slate-400 font-medium">Configure your wallet and enter the connected betting lobby</p>
             </div>
 
             {/* Input 1: Username */}

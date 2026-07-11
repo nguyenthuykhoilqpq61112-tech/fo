@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Tv, Calendar, Ticket, Users, BarChart3, Trophy, Award, Plus, RotateCcw, Activity, LogOut, Gamepad2, MessageSquare, ShieldCheck, ArrowLeftRight, Globe2, ChevronDown } from "lucide-react";
+import { Tv, Calendar, Ticket, Users, BarChart3, Trophy, Award, Plus, RotateCcw, Activity, LogOut, Gamepad2, MessageSquare, ShieldCheck, ArrowLeftRight, Globe2, ChevronDown, UserCircle, WalletCards } from "lucide-react";
 
 interface HeaderProps {
   activeTab: string;
@@ -27,24 +27,25 @@ export const Header: React.FC<HeaderProps> = ({
   hasOwnedClub = false,
 }) => {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [openMenu, setOpenMenu] = useState<"esports" | "worldcup" | "profile" | null>(null);
   const esportsTabs = [
     { id: "live", label: "Live", icon: <Tv size={14} className="opacity-85" /> },
     { id: "fixtures", label: "Fixtures & Odds", icon: <Calendar size={14} className="opacity-85" /> },
     { id: "tournament", label: gameMode === "LEAGUE" ? "Standings" : "Tournament", icon: <Trophy size={14} className="opacity-85" /> },
+    { id: "teams", label: "Teams", icon: <Users size={14} className="opacity-85" /> },
   ];
   const worldCupTabs = [
     { id: "worldcup-live", label: "Live", icon: <Tv size={14} className="opacity-85" /> },
     { id: "worldcup-fixtures", label: "Fixtures & Odds", icon: <Calendar size={14} className="opacity-85" /> },
     { id: "worldcup-tournament", label: "Tournament", icon: <Trophy size={14} className="opacity-85" /> },
+    { id: "worldcup-quick-bet", label: "One-click Bet", icon: <Ticket size={14} className="opacity-85" /> },
   ];
   const tabs = [
     { id: "bets", label: "My Bets", icon: <Ticket size={14} className="opacity-85" /> },
     { id: "feed", label: "Fan Feed", icon: <MessageSquare size={14} className="opacity-85" /> },
-    { id: "store", label: "VIP Store", icon: <div className="text-amber-500 font-bold">🛒</div> },
     { id: "casino", label: "Elite Casino", icon: <Gamepad2 size={14} className="opacity-[0.95] text-amber-450" /> },
     ...(hasOwnedClub ? [{ id: "myclub", label: "My Club", icon: <ShieldCheck size={14} className="text-emerald-400" /> }] : []),
     ...(hasOwnedClub ? [{ id: "transfers", label: "Transfers", icon: <ArrowLeftRight size={14} className="text-sky-400" /> }] : []),
-    { id: "teams", label: "Teams", icon: <Users size={14} className="opacity-85" /> },
     { id: "analytics", label: "Analytics", icon: <BarChart3 size={14} className="opacity-85" /> },
     { id: "leaderboard", label: "Leaderboard", icon: <Award size={14} className="opacity-85" /> },
     { id: "career", label: "Career", icon: <div className="text-yellow-400 font-bold">🏅</div> }
@@ -57,19 +58,19 @@ export const Header: React.FC<HeaderProps> = ({
     icon,
     items,
     active,
-    title,
+    menuId,
   }: {
+    menuId: "esports" | "worldcup";
     label: string;
     icon: React.ReactNode;
     items: typeof esportsTabs;
     active: boolean;
-    title: string;
   }) => (
     <div className="relative group shrink-0">
       <button
         type="button"
-        onClick={() => setActiveTab(items[0].id)}
-        title={title}
+        onClick={() => setOpenMenu(openMenu === menuId ? null : menuId)}
+        title={`${label} pages`}
         className={`flex items-center gap-1.5 px-2 md:px-3 py-2 md:py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all duration-200 cursor-pointer min-w-[36px] min-h-[36px] justify-center md:justify-start ${
           active
             ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-semibold shadow-[0_0_12px_rgba(16,185,129,0.15)]"
@@ -78,9 +79,9 @@ export const Header: React.FC<HeaderProps> = ({
       >
         <span className="shrink-0">{icon}</span>
         <span className="hidden md:inline">{label}</span>
-        <ChevronDown size={12} className="opacity-80" />
+        <ChevronDown size={12} className={`opacity-80 transition-transform ${openMenu === menuId ? "rotate-180" : ""}`} />
       </button>
-      <div className="absolute left-0 top-full hidden group-hover:block group-focus-within:block pt-2 z-50">
+      {openMenu === menuId && <div className="absolute left-0 top-full pt-2 z-[80]">
         <div className="min-w-[190px] rounded-xl border border-white/10 bg-slate-950/95 shadow-2xl backdrop-blur p-1">
           {items.map((item) => {
             const isActive = activeTab === item.id;
@@ -88,7 +89,10 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 key={item.id}
                 type="button"
-                onClick={() => setActiveTab(item.id)}
+                onClick={() => {
+                  setActiveTab(item.id);
+                  setOpenMenu(null);
+                }}
                 className={`w-full flex items-center gap-2 rounded-lg px-3 py-2 text-left text-xs transition-colors ${
                   isActive ? "bg-emerald-500/15 text-emerald-300" : "text-slate-300 hover:bg-white/5 hover:text-white"
                 }`}
@@ -99,7 +103,7 @@ export const Header: React.FC<HeaderProps> = ({
             );
           })}
         </div>
-      </div>
+      </div>}
     </div>
   );
 
@@ -119,18 +123,18 @@ export const Header: React.FC<HeaderProps> = ({
       </button>
 
       {/* Navigation tabs */}
-      <nav className="flex items-center overflow-x-auto no-scrollbar max-w-[45%] sm:max-w-[55%] md:max-w-none h-full mx-2">
+      <nav className="flex items-center overflow-visible max-w-[45%] sm:max-w-[55%] md:max-w-none h-full mx-2">
         <div className="flex items-center gap-0.5 md:gap-1">
           <DropdownGroup
+            menuId="esports"
             label="Esports"
-            title="Esports pages"
             icon={<Gamepad2 size={14} className="opacity-85" />}
             items={esportsTabs}
             active={esportsActive}
           />
           <DropdownGroup
+            menuId="worldcup"
             label="World Cup"
-            title="World Cup 2026 pages"
             icon={<Globe2 size={14} className="text-emerald-300" />}
             items={worldCupTabs}
             active={worldCupActive}
@@ -165,19 +169,15 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Profile & Wallet */}
       <div className="flex items-center gap-1.5 md:gap-3">
         {/* Wallet Display */}
-        <div className="bg-white/5 px-2 md:px-3 py-1.5 rounded-lg border border-white/10 flex items-center gap-1.5 md:gap-2">
+        <button type="button" onClick={addFunds} className="bg-white/5 px-2 md:px-3 py-1.5 rounded-lg border border-white/10 flex items-center gap-1.5 md:gap-2 hover:bg-white/10 transition-colors">
           <span className="hidden sm:inline text-[9px] font-mono text-slate-400 tracking-wider">WALLET:</span>
           <span className="text-xs font-bold text-emerald-400 font-mono">
             ${balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
-          <button
-            onClick={addFunds}
-            title="Add +$1000.00 Funds"
-            className="ml-0.5 md:ml-1.5 bg-emerald-500/20 hover:bg-emerald-500 hover:text-slate-950 text-emerald-400 p-0.5 px-1 rounded-md transition-all cursor-pointer flex items-center justify-center font-black text-[10px] min-w-[24px] min-h-[24px]"
-          >
+          <span className="ml-0.5 md:ml-1.5 bg-emerald-500/20 text-emerald-400 p-0.5 px-1 rounded-md flex items-center justify-center font-black text-[10px] min-w-[24px] min-h-[24px]">
             <Plus size={10} strokeWidth={3} />
-          </button>
-        </div>
+          </span>
+        </button>
 
         {/* Current Round Indicator */}
         <div className="hidden lg:flex flex-col items-end border-l border-white/10 pl-3">
@@ -245,11 +245,42 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         )}
 
-        {/* User name badge */}
-                <div className="hidden md:flex items-center gap-2">
-          <div className="h-8 w-8 rounded-full bg-emerald-500 flex items-center justify-center font-black text-slate-900 border border-emerald-400 shadow-lg shadow-emerald-500/20">
+        {/* User profile menu */}
+        <div className="relative hidden md:flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setOpenMenu(openMenu === "profile" ? null : "profile")}
+            className="h-8 w-8 rounded-full bg-emerald-500 flex items-center justify-center font-black text-slate-900 border border-emerald-400 shadow-lg shadow-emerald-500/20 hover:bg-emerald-300 transition-colors"
+            title="Profile"
+          >
             {username.slice(0, 2).toUpperCase()}
-          </div>
+          </button>
+          {openMenu === "profile" && (
+            <div className="absolute right-0 top-full mt-2 min-w-[220px] rounded-xl border border-white/10 bg-slate-950/95 shadow-2xl backdrop-blur p-1 z-[80]">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab("bets");
+                  setOpenMenu(null);
+                }}
+                className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-left text-xs text-slate-300 hover:bg-white/5 hover:text-white"
+              >
+                <UserCircle size={14} className="text-emerald-300" />
+                <span className="font-bold">Bet history</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  addFunds();
+                  setOpenMenu(null);
+                }}
+                className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-left text-xs text-slate-300 hover:bg-white/5 hover:text-white"
+              >
+                <WalletCards size={14} className="text-sky-300" />
+                <span className="font-bold">Recharge wallet</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>

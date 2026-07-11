@@ -1,6 +1,8 @@
 import {useEffect, useMemo, useState} from 'react';
 import {RefreshCw, Radio, Trophy, MapPin, Clock, Wifi} from 'lucide-react';
 import {fetchWorldCupLive, type WorldCupLiveMatch} from '../api/serverApi';
+import {WorldCupTeamButton} from './WorldCupTeamButton';
+import {WorldCupTeamModal} from './WorldCupTeamModal';
 
 function formatKickoff(value: string) {
   return new Intl.DateTimeFormat(undefined, {
@@ -28,6 +30,7 @@ export function WorldCupLiveHub() {
   const [source, setSource] = useState<string>('fallback');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [teamModal, setTeamModal] = useState<string | null>(null);
 
   const load = async () => {
     try {
@@ -130,7 +133,7 @@ export function WorldCupLiveHub() {
             <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 rounded-2xl bg-black/25 p-4">
               <div className="text-left">
                 <div className="text-sm text-slate-400">Home</div>
-                <div className="text-lg font-black text-white">{match.home}</div>
+                <WorldCupTeamButton team={match.home} onOpen={setTeamModal} />
               </div>
               <div className="text-center">
                 <div className="text-3xl font-black text-emerald-300">
@@ -140,7 +143,7 @@ export function WorldCupLiveHub() {
               </div>
               <div className="text-right">
                 <div className="text-sm text-slate-400">Away</div>
-                <div className="text-lg font-black text-white">{match.away}</div>
+                <WorldCupTeamButton team={match.away} align="right" onOpen={setTeamModal} />
               </div>
             </div>
 
@@ -172,6 +175,7 @@ export function WorldCupLiveHub() {
           </article>
         ))}
       </div>
+      <WorldCupTeamModal team={teamModal} matches={matches} onClose={() => setTeamModal(null)} />
     </section>
   );
 }
