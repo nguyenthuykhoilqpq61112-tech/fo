@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Tv, Calendar, Ticket, Users, BarChart3, Trophy, Award, Plus, RotateCcw, Activity, LogOut, Gamepad2, MessageSquare, ShieldCheck, ArrowLeftRight, Globe2, ChevronDown, UserCircle, WalletCards, Search, ArrowLeft, Gift, Scale, HeartHandshake, LayoutDashboard } from "lucide-react";
+import { Tv, Calendar, Ticket, Users, BarChart3, Trophy, Award, Plus, RotateCcw, Activity, LogOut, Gamepad2, MessageSquare, ShieldCheck, ArrowLeftRight, Globe2, ChevronDown, UserCircle, WalletCards, Search, ArrowLeft, Gift, Scale, HeartHandshake } from "lucide-react";
 
 interface HeaderProps {
   activeTab: string;
@@ -52,7 +52,6 @@ export const Header: React.FC<HeaderProps> = ({
     { id: "career", label: "Career", icon: <div className="text-yellow-400 font-bold">🏅</div> },
     { id: "fair-play", label: "Fair Play", icon: <Scale size={14} className="opacity-85" /> },
     { id: "responsible-gaming", label: "Responsible Gaming", icon: <HeartHandshake size={14} className="opacity-85" /> },
-    { id: "admin", label: "Admin", icon: <LayoutDashboard size={14} className="opacity-85" /> },
   ];
   const esportsActive = esportsTabs.some((tab) => tab.id === activeTab);
   const worldCupActive = worldCupTabs.some((tab) => tab.id === activeTab) || activeTab === "worldcup";
