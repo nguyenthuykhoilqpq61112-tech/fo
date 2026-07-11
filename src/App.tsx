@@ -34,6 +34,71 @@ import { WorldCupFixturesOdds } from "./components/WorldCupFixturesOdds";
 import { WorldCupTournament } from "./components/WorldCupTournament";
 import { WorldCupQuickBet, type WorldCupQuickSelection } from "./components/WorldCupQuickBet";
 
+const TAB_PATHS: Record<string, string> = {
+  fixtures: "/fixtures",
+  live: "/live",
+  tournament: "/tournament",
+  bets: "/bets",
+  teams: "/teams",
+  analytics: "/analytics",
+  leaderboard: "/leaderboard",
+  career: "/career",
+  casino: "/casino",
+  worldcup: "/worldcup",
+  "worldcup-live": "/worldcup/live",
+  "worldcup-fixtures": "/worldcup/fixtures",
+  "worldcup-tournament": "/worldcup/tournament",
+  "worldcup-quick-bet": "/worldcup/quick-bet",
+  feed: "/feed",
+  myclub: "/myclub",
+  transfers: "/transfers",
+};
+
+function tabFromPath(pathname: string) {
+  const path = pathname.replace(/\/+$/, "") || "/";
+  switch (path) {
+    case "/live":
+      return "live";
+    case "/tournament":
+      return "tournament";
+    case "/bets":
+      return "bets";
+    case "/teams":
+      return "teams";
+    case "/analytics":
+      return "analytics";
+    case "/leaderboard":
+      return "leaderboard";
+    case "/career":
+      return "career";
+    case "/casino":
+      return "casino";
+    case "/worldcup":
+      return "worldcup";
+    case "/worldcup/live":
+      return "worldcup-live";
+    case "/worldcup/fixtures":
+      return "worldcup-fixtures";
+    case "/worldcup/tournament":
+      return "worldcup-tournament";
+    case "/worldcup/quick-bet":
+      return "worldcup-quick-bet";
+    case "/feed":
+      return "feed";
+    case "/myclub":
+      return "myclub";
+    case "/transfers":
+      return "transfers";
+    case "/fixtures":
+    default:
+      return "fixtures";
+  }
+}
+
+function pathForTab(tab: string) {
+  return TAB_PATHS[tab] || "/fixtures";
+}
+
 import {
   initializeNewTournament,
   initializeNewLeague,
@@ -65,7 +130,9 @@ export default function App({ authSession }: { authSession: AuthSession }) {
     localStorage.getItem("fs_selected_game_mode") as "TOURNAMENT" | "LEAGUE" | null,
   );
 
-  const [activeTab, setActiveTab] = useState("fixtures");
+  const [activeTab, _setActiveTab] = useState(() =>
+    typeof window !== "undefined" ? tabFromPath(window.location.pathname) : "fixtures",
+  );
   const [collapsedSlip, setCollapsedSlip] = useState(false);
   const [showWinnerCelebration, setShowWinnerCelebration] = useState(false);
   const [showWalletModal, setShowWalletModal] = useState(false);
@@ -82,6 +149,20 @@ export default function App({ authSession }: { authSession: AuthSession }) {
     localStorage.getItem("lastSelectedFixtureId") || "",
   );
   const [worldCupQuickSelection, setWorldCupQuickSelection] = useState<WorldCupQuickSelection | null>(null);
+
+  const setActiveTab = (tab: string) => {
+    _setActiveTab(tab);
+    if (typeof window !== "undefined") {
+      const nextPath = pathForTab(tab);
+      if (window.location.pathname !== nextPath) window.history.pushState({tab}, "", nextPath);
+    }
+  };
+
+  useEffect(() => {
+    const handlePopState = () => _setActiveTab(tabFromPath(window.location.pathname));
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
 
   const [teams, setTeams] = useState<Team[]>([]);
   const [fixtures, setFixtures] = useState<Fixture[]>([]);
@@ -303,6 +384,7 @@ export default function App({ authSession }: { authSession: AuthSession }) {
     setTipsters([]);
     setTipsterTickets({});
     setSelectedBets([]);
+    if (typeof window !== "undefined") window.history.replaceState({}, "", "/");
   };
 
   // ─── Generate transfer listings at round start ──────────────────────
