@@ -7,13 +7,15 @@ interface AuthGateProps {
 }
 
 export function AuthGate({children}: AuthGateProps) {
-  const [session, setSession] = useState<AuthSession | null>(() => getStoredSession());
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const authPath = typeof window !== 'undefined' && ['/login', '/register'].includes(window.location.pathname);
+  const initialMode = typeof window !== 'undefined' && window.location.pathname === '/register' ? 'register' : 'login';
+  const [session, setSession] = useState<AuthSession | null>(() => authPath ? null : getStoredSession());
+  const [mode, setMode] = useState<'login' | 'register'>(initialMode);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showAuth, setShowAuth] = useState(false);
+  const [showAuth, setShowAuth] = useState(authPath);
   const [showPromo, setShowPromo] = useState(true);
 
   const submit = async (event: FormEvent) => {
@@ -23,6 +25,9 @@ export function AuthGate({children}: AuthGateProps) {
     try {
       const next = mode === 'login' ? await login(username, password) : await register(username, password);
       storeSession(next);
+      if (typeof window !== 'undefined' && ['/login', '/register'].includes(window.location.pathname)) {
+        window.history.replaceState({}, '', '/');
+      }
       setSession(next);
     } catch (err) {
       setError((err as Error).message);
