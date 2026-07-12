@@ -41,14 +41,16 @@ function corsHeaders(request: Request) {
     .split(',')
     .map((value) => value.trim())
     .filter(Boolean);
+  const defaultAdminOrigins = ['https://wc26-ad.zeabur.app'];
 
-  if (!origin || allowedOrigins.length === 0) return {};
-  if (!allowedOrigins.includes('*') && !allowedOrigins.includes(origin)) return {};
+  if (!origin) return {};
+  if (!allowedOrigins.includes('*') && !allowedOrigins.includes(origin) && !defaultAdminOrigins.includes(origin)) return {};
 
   return {
     'access-control-allow-origin': allowedOrigins.includes('*') ? '*' : origin,
     'access-control-allow-methods': 'GET,POST,PUT,OPTIONS',
     'access-control-allow-headers': 'content-type,authorization',
+    'access-control-max-age': '86400',
     'vary': 'Origin',
   };
 }
